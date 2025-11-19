@@ -1,3 +1,6 @@
 notebooks/data
 
 **/__pycache__/
+
+# Main Project data
+msc-proj
