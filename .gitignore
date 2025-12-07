@@ -4,3 +4,5 @@ notebooks/data
 
 # Main Project data
 msc-proj
+
+.venv
