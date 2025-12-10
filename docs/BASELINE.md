@@ -1,0 +1,1 @@
+"Shots" means the number of example events provided per class that will act as templates for matching. [In the **template_matching**], a shot is one labeled examples of the target event. 
