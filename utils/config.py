@@ -5,3 +5,4 @@ from dataclasses import dataclass
 class Config:
     SAMPLING_RATE: int = 16000
     DATA_DIR: Path = Path("/data/msc-proj/")
+    RANDOM_SEED: int = 42
