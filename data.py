@@ -63,6 +63,15 @@ class ListData:
                     if subdir.is_dir() and not subdir.name.startswith('.') and not self._is_virtual_env(subdir):
                         print(f"{self.directories_mapping[subdir.name]}: {subdir.name}")
 
+    def list_all_audio_files(self) -> None:
+        for dir in self.config.DATA_DIR.iterdir():
+            if dir.is_dir() and not dir.name.startswith('.') and not self._is_virtual_env(dir):
+                for subdir in dir.iterdir():
+                    if subdir.is_dir() and not subdir.name.startswith('.') and not self._is_virtual_env(subdir):
+                        for file in subdir.iterdir():
+                            if file.is_file() and file.name.endswith('.wav'):
+                                print(f"{subdir.name}: {file.name}")
+
 if __name__ == "__main__":
     config = Config()
     list_data = ListData(config)

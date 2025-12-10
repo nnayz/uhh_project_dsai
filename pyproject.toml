@@ -19,3 +19,18 @@ dependencies = [
     "torchvision>=0.24.0",
     "tqdm>=4.67.1",
 ]
+
+
+[project.scripts]
+g5 = "main:cli"
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["archs", "utils"]
+py-modules = ["main", "data"]
+
+[tool.uv]
+package = true
