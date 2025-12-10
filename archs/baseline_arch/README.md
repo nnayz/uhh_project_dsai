@@ -20,5 +20,7 @@ $c_k = \frac{1}{\vert S_k\vert } \sum_{(x_i, y_i) \in S_k} f_{\phi}(x_i)$
 
 where $\vert S_k\vert $ is the number of support examples in class $k$, and $f_{\phi}(x_i)$ is the embedded vector of a support example $x_i$
 
+**Choice of using mean**
 
-
+- Not arbitrary
+- As the distance function used for classification is a Bregman divergence, such as the squared Euclidean distance, the mean of a set of points is the optimal representative that minimises the total distance to all points in that set.  [Basically ]

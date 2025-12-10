@@ -16,7 +16,7 @@ class ListData:
             "PB": "<Hidden>",
             "PB24": "<Hidden>",
 
-            # Testing directories
+            # Evaluation directories
             "HB": "<Hidden>",
             "PW": "<Hidden>",
             "RD": "<Hidden>"
@@ -56,12 +56,21 @@ class ListData:
                     if subdir.is_dir() and not subdir.name.startswith('.') and not self._is_virtual_env(subdir):
                         print(f"{self.directories_mapping[subdir.name]}: {subdir.name}")
 
-    def list_test_directories(self) -> None:
+    def list_evaluation_directories(self) -> None:
         for dir in self.config.DATA_DIR.iterdir():
             if dir.is_dir() and dir.name.startswith('Evaluation') and not self._is_virtual_env(dir):
                 for subdir in dir.iterdir():
                     if subdir.is_dir() and not subdir.name.startswith('.') and not self._is_virtual_env(subdir):
                         print(f"{self.directories_mapping[subdir.name]}: {subdir.name}")
+
+    def list_all_audio_files(self) -> None:
+        for dir in self.config.DATA_DIR.iterdir():
+            if dir.is_dir() and not dir.name.startswith('.') and not self._is_virtual_env(dir):
+                for subdir in dir.iterdir():
+                    if subdir.is_dir() and not subdir.name.startswith('.') and not self._is_virtual_env(subdir):
+                        for file in subdir.iterdir():
+                            if file.is_file() and file.name.endswith('.wav'):
+                                print(f"{subdir.name}: {file.name}")
 
 if __name__ == "__main__":
     config = Config()
@@ -84,4 +93,4 @@ if __name__ == "__main__":
 
     print("\n\n")
     print("Evaluation directories: \n")
-    list_data.list_test_directories()
+    list_data.list_evaluation_directories()
