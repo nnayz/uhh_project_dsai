@@ -6,3 +6,13 @@ notebooks/data
 msc-proj
 
 .venv
+
+# Python build artifacts
+*.egg-info/
+*.egg
+dist/
+build/
+*.pyc
+*.pyo
+*.pyd
+.Python
