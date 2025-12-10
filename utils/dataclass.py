@@ -27,6 +27,7 @@ class PrototypicalDataset(Dataset):
         seed: Optional[int] = None
     ):
         """
+        Initializes the PrototypicalDataset.
         Args:
             data: Dictionary mapping class names to lists of examples
             n_way: Number of classes per episode
@@ -268,6 +269,9 @@ class DataClass:
         """
         if not self.data_by_class:
             raise ValueError("No data loaded. Call load_data() first.")
+
+        if not seed:
+            seed = self.config.RANDOM_SEED
         
         return PrototypicalDataset(
             data=self.data_by_class,
