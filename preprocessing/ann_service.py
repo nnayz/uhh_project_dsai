@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 import pandas as pd
 
-from models import SegmentExample
+from schemas import SegmentExample
 
 
 class AnnotationService:
@@ -64,7 +64,7 @@ class AnnotationService:
         Load all annotation files and return the list of examples.
 
         Args:
-            annotation_paths: List of paths to annotation CSV files.
+            annotation_paths: List of paths to annotation CSV files (supports glob patterns).
 
         Returns:
             List of SegmentExample objects.
@@ -73,7 +73,25 @@ class AnnotationService:
         self.class_to_idx = {}
 
         for ann_path in annotation_paths:
-            self._load_annotation_file(Path(ann_path))
+            path = Path(ann_path)
+            path_str = str(path)
+            # Expand glob patterns (e.g., "/data/Training_Set/**/*.csv")
+            if "*" in path_str or "?" in path_str:
+                # Find the root (non-glob) portion of the path
+                parts = path.parts
+                root_parts = []
+                for part in parts:
+                    if "*" in part or "?" in part:
+                        break
+                    root_parts.append(part)
+                root = Path(*root_parts) if root_parts else Path(".")
+                # Get the glob pattern relative to root
+                glob_pattern = str(path.relative_to(root))
+                expanded_paths = sorted(root.glob(glob_pattern))
+                for expanded_path in expanded_paths:
+                    self._load_annotation_file(expanded_path)
+            else:
+                self._load_annotation_file(path)
 
         return self.examples
 
