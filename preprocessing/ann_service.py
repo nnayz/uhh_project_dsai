@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 import pandas as pd
 
-from models import SegmentExample
+from schemas import SegmentExample
 
 
 class AnnotationService:

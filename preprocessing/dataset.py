@@ -7,7 +7,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-from models import SegmentExample
+from schemas import SegmentExample
 from .ann_service import AnnotationService
 from .preprocess import extract_logmel_segment
 from utils.config import Config
