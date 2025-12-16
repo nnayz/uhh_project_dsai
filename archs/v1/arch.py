@@ -5,13 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Tuple
 
-
-
-from enum import Enum
-
-class Distance(Enum):
-    EUCLIDEAN = "euclidean" # Squared Euclidean distance
-    COSINE = "cosine" # Cosine distance = 1 - cosine similarity
+from utils.config import Distance
 
 class ConvEncoder(nn.Module):
     """
@@ -75,8 +69,6 @@ class ProtoNet(nn.Module):
     ) -> None:
         super().__init__()
         self.encoder = ConvEncoder(in_channels=1, emb_dim=emb_dim)
-        if distance not in (Distance.EUCLIDEAN, Distance.COSINE):
-            raise ValueError(f"distance must be {Distance.EUCLIDEAN.value} or {Distance.COSINE.value}")
         self.distance = distance
 
     @staticmethod

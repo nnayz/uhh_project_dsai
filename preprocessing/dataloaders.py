@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Tuple, Optional, Union
+from typing import Tuple, Optional
 
 from torch.utils.data import DataLoader
 
@@ -8,133 +8,97 @@ from utils.config import Config
 
 
 def make_dcase_event_dataset(
-    annotation_files: List[Union[str, Path]],
-    config: Optional[Config] = None,
-    positive_label: str = "POS",
-    class_name: Optional[str] = None,
-    min_duration: Optional[float] = 0.5,
+    config: Config,
+    annotations: Optional[list] = None,
 ) -> DCASEEventDataset:
     """
     Create a DCASEEventDataset from annotation files.
 
     Args:
-        annotation_files: List of paths to annotation CSV files.
-        config: Configuration object. If None, uses default Config().
-        positive_label: The label value that indicates a positive example.
-        class_name: Optional explicit class name to use for all annotations.
-        min_duration: Minimum duration in seconds (pads shorter segments).
+        config: Configuration object (required).
+        annotations: Optional list of annotation paths. If None, uses config.TRAIN_ANNOTATION_FILES.
 
     Returns:
         DCASEEventDataset: The created dataset.
+
+    Raises:
+        ValueError: If no annotation files are provided.
     """
-    if config is None:
-        config = Config()
-
-    # Convert frame/hop length from seconds to samples
-    n_fft = int(config.FRAME_LENGTH * config.SAMPLING_RATE)
-    hop_length = int(config.HOP_LENGTH * config.SAMPLING_RATE)
-    win_length = n_fft
-
-    ann_paths = [Path(a) for a in annotation_files]
+    ann_paths = annotations if annotations is not None else config.TRAIN_ANNOTATION_FILES
+    
+    if not ann_paths:
+        raise ValueError(
+            "No annotation files provided. "
+            "Either pass 'annotations' argument or set config.TRAIN_ANNOTATION_FILES."
+        )
+    
     return DCASEEventDataset(
         annotations=ann_paths,
-        positive_label=positive_label,
-        class_name=class_name,
-        target_sr=config.SAMPLING_RATE,
-        n_fft=n_fft,
-        hop_length=hop_length,
-        win_length=win_length,
-        n_mels=config.N_MELS,
-        min_duration=min_duration,
+        config=config,
     )
 
 
 def make_fewshot_dataloaders(
-    train_annotation_files: List[Union[str, Path]],
-    config: Optional[Config] = None,
-    val_annotation_files: Optional[List[Union[str, Path]]] = None,
-    positive_label: str = "POS",
-    class_name: Optional[str] = None,
-    min_duration: Optional[float] = 0.5,
-    max_frames: int = 512,
-    batch_size: int = 1,
+    config: Config,
 ) -> Tuple[DataLoader, Optional[DataLoader]]:
     """
     Create train and (optionally) validation dataloaders that yield few-shot episodes.
 
+    All parameters are read from the config object:
+        - TRAIN_ANNOTATION_FILES: Training annotation CSV files
+        - VAL_ANNOTATION_FILES: Validation annotation CSV files
+        - POSITIVE_LABEL: Label value indicating a positive example
+        - CLASS_NAME: Explicit class name for annotations
+        - MIN_DURATION: Minimum duration in seconds
+        - MAX_FRAMES: Maximum number of time frames
+        - BATCH_SIZE: Batch size for dataloaders
+        - NUM_WORKERS: Number of workers for dataloaders
+
     Args:
-        train_annotation_files: List of paths to training annotation CSV files.
-        config: Configuration object. If None, uses default Config().
-        val_annotation_files: Optional list of paths to validation annotation CSV files.
-        positive_label: The label value that indicates a positive example.
-        class_name: Optional explicit class name to use for all annotations.
-        min_duration: Minimum duration in seconds (pads shorter segments).
-        max_frames: Maximum number of time frames (pads/crops to this).
-        batch_size: Batch size for dataloaders (usually 1 episode per batch).
+        config: Configuration object (required).
 
     Returns:
         Tuple[DataLoader, Optional[DataLoader]]: Train dataloader and optional validation dataloader.
+
+    Raises:
+        ValueError: If TRAIN_ANNOTATION_FILES is empty.
     """
-    if config is None:
-        config = Config()
-
-    # Convert frame/hop length from seconds to samples
-    n_fft = int(config.FRAME_LENGTH * config.SAMPLING_RATE)
-    hop_length = int(config.HOP_LENGTH * config.SAMPLING_RATE)
-    win_length = n_fft
-
+    if not config.TRAIN_ANNOTATION_FILES:
+        raise ValueError(
+            "config.TRAIN_ANNOTATION_FILES is empty. "
+            "Training requires at least one annotation file path."
+        )
+    
     # Base flat dataset for training
     train_base = DCASEEventDataset(
-        annotations=[Path(a) for a in train_annotation_files],
-        positive_label=positive_label,
-        class_name=class_name,
-        target_sr=config.SAMPLING_RATE,
-        n_fft=n_fft,
-        hop_length=hop_length,
-        win_length=win_length,
-        n_mels=config.N_MELS,
-        min_duration=min_duration,
+        annotations=config.TRAIN_ANNOTATION_FILES,
+        config=config,
     )
     train_episode_dataset = FewShotEpisodeDataset(
         base_dataset=train_base,
-        k_way=config.N_WAY,
-        n_shot=config.K_SHOT,
-        n_query=config.N_QUERY,
-        max_frames=max_frames,
-        num_episodes=config.EPISODES_PER_EPOCH,
+        config=config,
     )
     train_loader = DataLoader(
         train_episode_dataset,
-        batch_size=batch_size,
+        batch_size=config.BATCH_SIZE,
         num_workers=config.NUM_WORKERS,
         shuffle=False,  # episode dataset does its own randomness
         pin_memory=True,
     )
 
     val_loader = None
-    if val_annotation_files is not None and len(val_annotation_files) > 0:
+    if config.VAL_ANNOTATION_FILES and len(config.VAL_ANNOTATION_FILES) > 0:
         val_base = DCASEEventDataset(
-            annotations=[Path(a) for a in val_annotation_files],
-            positive_label=positive_label,
-            class_name=class_name,
-            target_sr=config.SAMPLING_RATE,
-            n_fft=n_fft,
-            hop_length=hop_length,
-            win_length=win_length,
-            n_mels=config.N_MELS,
-            min_duration=min_duration,
+            annotations=config.VAL_ANNOTATION_FILES,
+            config=config,
         )
         val_episode_dataset = FewShotEpisodeDataset(
             base_dataset=val_base,
-            k_way=config.N_WAY,
-            n_shot=config.K_SHOT,
-            n_query=config.N_QUERY,
-            max_frames=max_frames,
-            num_episodes=config.EPISODES_PER_EPOCH,
+            config=config,
         )
         val_loader = DataLoader(
             val_episode_dataset,
-            batch_size=batch_size,
+            batch_size=config.BATCH_SIZE,
             num_workers=config.NUM_WORKERS,
             shuffle=False,
             pin_memory=True,

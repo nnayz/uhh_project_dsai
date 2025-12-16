@@ -1,7 +1,9 @@
 import click
 from utils.config import Config
+from utils.logger import setup_logger
 
 config = Config()
+logger = setup_logger(config, name="main")
 
 @click.group()
 @click.version_option("1.0.0", "-v", "--version", help="Show version and exit.")
@@ -57,22 +59,21 @@ def list_all_audio_files():
     list_data.list_all_audio_files()
     print("\n\n")
 
-@cli.command("train-model", help="Train the model")
-@click.option(
-    "--arch-type", "-a", 
-    type=click.Choice(["baseline", "nasrul", "diksha", "gaurika"], 
-    case_sensitive=False), required=True, 
-    help="Architecture type to use", 
-    default="baseline"
-)
-def train_model(arch_type):
+@cli.command("train", help="Train a particular architecture")
+@click.argument("arch-type", type=click.Choice(["baseline", "v1"], case_sensitive=False))
+def train(arch_type):
     """
-    Train the model with the given architecture
+    Train the model with the given architecture.
+    
+    ARCH-TYPE: Architecture type to use (baseline or v1)
     """
-    print(f"Training the model with {arch_type} architecture...")
-    pass #TODO: Implement the training logic
-
-
+    logger.info(f"Training the model with {arch_type} architecture...")
+    if arch_type == "baseline":
+        from archs.baseline.train import main as baseline_train
+        baseline_train()
+    elif arch_type == "v1":
+        from archs.v1.train import main as v1_train
+        v1_train()
 
 if __name__ == "__main__":
     cli()
