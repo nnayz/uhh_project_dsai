@@ -7,7 +7,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-from models import SegmentExample
+from schemas import SegmentExample
 from .ann_service import AnnotationService
 from .preprocess import extract_logmel_segment
 from utils.config import Config
@@ -25,74 +25,39 @@ class DCASEEventDataset(Dataset):
 
     def __init__(
         self,
-        annotations: List[Union[str, Path]],
-        config: Optional[Config] = None,
-        positive_label: str = "POS",
-        class_name: Optional[str] = None,
-        # log-mel params (override config if provided)
-        target_sr: Optional[int] = None,
-        n_fft: Optional[int] = None,
-        hop_length: Optional[int] = None,
-        win_length: Optional[int] = None,
-        n_mels: Optional[int] = None,
-        min_duration: Optional[float] = 0.5,
+        annotations: List[Path],
+        config: Config,
     ) -> None:
         """
         Initialize the DCASEEventDataset.
 
         Args:
             annotations: List of paths to annotation CSV files.
-            config: Configuration object. If None, uses default Config().
-            positive_label: The label value that indicates a positive example.
-            class_name: Optional explicit class name to use for all annotations.
-            target_sr: Target sampling rate for audio (overrides config).
-            n_fft: FFT window size (overrides config).
-            hop_length: Hop length for spectrogram (overrides config).
-            win_length: Window length for spectrogram (overrides config).
-            n_mels: Number of mel frequency bins (overrides config).
-            min_duration: Minimum duration in seconds (pads shorter segments).
+            config: Configuration object (required).
+
+        Raises:
+            ValueError: If config is not provided.
         """
         super().__init__()
 
-        if config is None:
-            config = Config()
-
-        self.positive_label = positive_label
-        self.class_name = class_name
-
-        # Use config values as defaults, allow overrides
-        _target_sr = target_sr if target_sr is not None else config.SAMPLING_RATE
-        _n_fft = n_fft if n_fft is not None else int(config.FRAME_LENGTH * config.SAMPLING_RATE)
-        _hop_length = hop_length if hop_length is not None else int(config.HOP_LENGTH * config.SAMPLING_RATE)
-        _win_length = win_length if win_length is not None else _n_fft
-        _n_mels = n_mels if n_mels is not None else config.N_MELS
-
-        # log-mel params stored for use in __getitem__
-        self.spec_params = dict(
-            target_sr=_target_sr,
-            n_fft=_n_fft,
-            hop_length=_hop_length,
-            win_length=_win_length,
-            n_mels=_n_mels,
-            min_duration=min_duration,
-        )
+        self.config = config
 
         # Use AnnotationService to load and parse annotations
         self.annotation_service = AnnotationService(
-            positive_label=positive_label,
-            class_name=class_name,
+            positive_label=config.POSITIVE_LABEL,
+            class_name=config.CLASS_NAME,
         )
 
-        annotation_paths = [Path(a) for a in annotations]
+        annotation_paths = annotations
         self.examples: List[SegmentExample] = self.annotation_service.load_annotations(
-            annotation_paths
+            annotation_paths=annotation_paths,
         )
         self.class_to_idx: Dict[str, int] = self.annotation_service.get_class_to_idx()
 
         if not self.examples:
             raise RuntimeError(
                 f"No positive events found in annotations. "
-                f"Check CSV format (columns) and positive_label='{self.positive_label}'."
+                f"Check CSV format (columns) and positive_label='{config.POSITIVE_LABEL}'."
             )
 
     def __len__(self) -> int:
@@ -113,7 +78,7 @@ class DCASEEventDataset(Dataset):
             wav_path=ex.wav_path,
             start_time=ex.start_time,
             end_time=ex.end_time,
-            **self.spec_params,
+            config=self.config,
         )
         tensor = torch.from_numpy(logmel)[None, ...]  # (1, n_mels, T)
         label = ex.class_id
@@ -161,36 +126,29 @@ class FewShotEpisodeDataset(Dataset):
     def __init__(
         self,
         base_dataset: DCASEEventDataset,
-        config: Optional[Config] = None,
-        k_way: Optional[int] = None,
-        n_shot: Optional[int] = None,
-        n_query: Optional[int] = None,
-        max_frames: int = 512,
-        num_episodes: Optional[int] = None,
+        config: Config,
     ) -> None:
         """
         Initialize the FewShotEpisodeDataset.
 
         Args:
             base_dataset: The underlying DCASEEventDataset.
-            config: Configuration object. If None, uses default Config().
-            k_way: Number of classes per episode (overrides config.N_WAY).
-            n_shot: Number of support examples per class (overrides config.K_SHOT).
-            n_query: Number of query examples per class (overrides config.N_QUERY).
-            max_frames: Maximum number of time frames (pads/crops to this).
-            num_episodes: Number of episodes per epoch (overrides config.EPISODES_PER_EPOCH).
+            config: Configuration object (required).
+
+        Raises:
+            ValueError: If config is not provided.
         """
         super().__init__()
 
         if config is None:
-            config = Config()
+            raise ValueError("config is required and cannot be None")
 
         self.base_dataset = base_dataset
-        self.k_way = k_way if k_way is not None else config.N_WAY
-        self.n_shot = n_shot if n_shot is not None else config.K_SHOT
-        self.n_query = n_query if n_query is not None else config.N_QUERY
-        self.max_frames = max_frames
-        self.num_episodes = num_episodes if num_episodes is not None else config.EPISODES_PER_EPOCH
+        self.k_way = config.N_WAY
+        self.n_shot = config.K_SHOT
+        self.n_query = config.N_QUERY
+        self.max_frames = config.MAX_FRAMES
+        self.num_episodes = config.EPISODES_PER_EPOCH
 
         # Map from class_id to list of indices in base_dataset
         self.class_to_indices: Dict[int, List[int]] = {}

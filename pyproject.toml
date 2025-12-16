@@ -29,7 +29,7 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["archs", "utils"]
+packages = ["archs", "archs.baseline", "archs.v1", "utils", "preprocessing", "schemas"]
 py-modules = ["main", "data"]
 
 [tool.uv]
