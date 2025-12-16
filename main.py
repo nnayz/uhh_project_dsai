@@ -23,7 +23,7 @@ def list_data_directories(type):
     """
     List all data directories
     """
-    from data import ListData
+    from preprocessing.list_data import ListData
     list_data = ListData(config)
     if type == "training":
         print("Training directories: \n")
@@ -52,7 +52,7 @@ def list_all_audio_files():
     """
     List all audio files
     """
-    from data import ListData
+    from preprocessing.list_data import ListData
     list_data = ListData(config)
     list_data.list_all_audio_files()
     print("\n\n")
