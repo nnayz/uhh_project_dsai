@@ -1,44 +1,48 @@
 ## Meta Learning on Bioacoustics
 
-Early-stage repo for few-shot classification of animal vocalisations using Prototypical Networks. The goal is to learn an embedding that can quickly adapt to new species/call types from only a handful of labelled audio clips.
+Few-shot classification of animal vocalisations using Prototypical Networks. Each training step is an episodic task (N-way, K-shot) so the model can adapt quickly to new species or call types from only a handful of labelled clips.
 
-### What we're trying to do
-- Build a meta-learning pipeline that treats each training batch as an “episode” (N-way, K-shot) and classifies queries by distance to class prototypes.
-- Target bioacoustics corpora (hyenas, birds, meerkats, etc.) where labels are scarce and new classes appear at evaluation time.
-- Provide a simple CLI to explore data directories and, eventually, launch training.
+### Repo layout (key bits)
+- `main.py`: Click CLI; `train` runs either the baseline or the new `v1` ProtoNet trainer, and data listing helpers remain available.
+- `archs/v1/`: `arch.py` (ProtoNet + encoder) and `train.py` (full training loop, checkpointing, logging).
+- `preprocessing/`: Annotation parsing (`ann_service.py`), flat dataset + episodic sampler (`dataset.py`), and dataloader builders (`dataloaders.py`).
+- `utils/config.py`: Central config dataclass (data paths, episodes, model + optimizer settings, device).
+- `utils/logger.py`: File + stdout logger (`runs/proto/logs/log.txt` by default).
 
-### Current pieces
-- `archs/baseline_arch/`: Prototypical Network encoders (simple ConvNet and a shallow ResNet) for spectrogram inputs.
-- `utils/dataclass.py`: Episodic dataset + dataloader wrapper for few-shot sampling (usage in `utils/README.md`).
-- `data.py`: Helpers to list available training/validation/evaluation folders and audio files.
-- `utils/config.py`: Minimal configuration (data root, sampling rate, seed).
-- `main.py`: Click CLI with commands to list data folders/files and a placeholder `train-model`.
+### Data & annotations
+- Defaults point to CSV annotation globs:
+  - train: `/data/msc-proj/Training_Set/**/*.csv`
+  - val: `/data/msc-proj/Validation_Set_DSAI_2025_2026/**/*.csv`
+  - test: `/data/msc-proj/Evaluation_Set_DSAI_2025_2026/**/*.csv`
+- Audio files are expected beside the CSVs. Supported CSV formats (see `preprocessing/ann_service.py`):
+  - Single-class with `Q` column (rows marked `POS` kept).
+  - Explicit class name via `Config.CLASS_NAME` + `Q`.
+  - Multi-class `CLASS_*` columns (keep rows where column == `POS`).
+  - Fallback: `Audiofilename/Starttime/Endtime` only (all rows treated as positives for that file’s class).
+- Update `Config` paths if your data lives elsewhere.
 
-### Docs
-- Dataclass helpers and episodic sampling: `utils/README.md`.
-
-### Data layout (expected)
-Under `Config.DATA_DIR` (defaults to `/data/msc-proj/`):
-```
-Training*/<CLASS_NAME>/*.wav
-Validation*/<CLASS_NAME>/*.wav
-Evaluation*/<CLASS_NAME>/*.wav
-```
-Class folders are mapped to friendly names in `data.py`; hidden/venv folders are skipped.
-
-### Quick start
+### Running
 ```bash
-# list available training/validation/evaluation sets
-python main.py list-data-dir --type all
+# install (example)
+pip install -e .
 
-# list all audio files (recurses over the data root)
+# explore data root
+python main.py list-data-dir --type all
 python main.py list-all-audio-files
 
-# training entrypoint (to be implemented)
-python main.py train-model --arch-type baseline
+# train (baseline or v1)
+python main.py train v1
 ```
+Training logs to `runs/proto/logs/log.txt`; checkpoints save to `runs/proto/checkpoints/protonet_v1_epoch*.pt`.
 
-### Next steps
-- Wire up data loading of audio -> log-mel (or other) spectrograms.
-- Implement the prototypical loss + episodic trainer in `train-model`.
-- Add evaluation scripts for unseen classes and model checkpointing.
+### Config tips
+- Override defaults when constructing `Config`, e.g.:
+  ```python
+  cfg = Config(
+      TRAIN_ANNOTATION_FILES=[Path("/path/to/train/*.csv")],
+      VAL_ANNOTATION_FILES=[Path("/path/to/val/*.csv")],
+      DISTANCE=Config.Distance.COSINE,
+      MAX_EPOCHS=20,
+  )
+  ```
+- Episode shape: `N_WAY`, `K_SHOT`, `N_QUERY`, `EPISODES_PER_EPOCH` govern sampler behaviour; `MAX_FRAMES` pads/crops time dimension of spectrograms.
