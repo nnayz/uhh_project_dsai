@@ -1,24 +1,27 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
-from utils.config import Config
+from omegaconf import DictConfig
 
 
-def setup_logger(config: Config, name: str = "proto") -> logging.Logger:
+def setup_logger(cfg: DictConfig, name: str = "proto") -> logging.Logger:
     """
-    Setup the logger using config settings.
+    Setup the logger using Hydra config settings.
 
     Args:
-        config: Configuration object (required).
+        cfg: Hydra DictConfig with runtime.log_dir.
         name: Logger name.
 
     Returns:
         logging.Logger: Configured logger instance.
     """
-    config.LOG_DIR.mkdir(parents=True, exist_ok=True)
+    log_dir = Path(cfg.runtime.log_dir)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
     formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    file_handler = logging.FileHandler(config.LOG_DIR / "log.txt")
+    file_handler = logging.FileHandler(log_dir / "log.txt")
     file_handler.setFormatter(formatter)
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)

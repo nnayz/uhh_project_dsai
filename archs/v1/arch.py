@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from typing import Tuple
 
-from utils.config import Distance
+from utils.distance import Distance
 
 class ConvEncoder(nn.Module):
     """

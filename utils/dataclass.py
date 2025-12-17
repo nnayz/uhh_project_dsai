@@ -4,7 +4,7 @@ from typing import List, Tuple, Dict, Optional
 import numpy as np
 from pathlib import Path
 import random
-from utils.config import Config
+from omegaconf import DictConfig
 
 
 class PrototypicalDataset(Dataset):
@@ -154,12 +154,12 @@ class DataClass:
     - Creating DataLoaders for episodic training
     """
     
-    def __init__(self, config: Config):
+    def __init__(self, cfg: DictConfig):
         """
         Args:
-            config: Configuration object containing data paths and parameters
+            cfg: Hydra DictConfig containing data paths and parameters
         """
-        self.config = config
+        self.cfg = cfg
         self.data_by_class: Dict[str, List] = {}
         self.class_to_idx: Dict[str, int] = {}
         self.idx_to_class: Dict[int, str] = {}
@@ -269,9 +269,6 @@ class DataClass:
         """
         if not self.data_by_class:
             raise ValueError("No data loaded. Call load_data() first.")
-
-        if not seed:
-            seed = self.config.RANDOM_SEED
         
         return PrototypicalDataset(
             data=self.data_by_class,
