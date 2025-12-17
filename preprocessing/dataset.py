@@ -6,11 +6,11 @@ from typing import Dict, List, Optional, Tuple, Union
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
+from omegaconf import DictConfig
 
 from schemas import SegmentExample
 from .ann_service import AnnotationService
 from .preprocess import extract_logmel_segment
-from utils.config import Config
 
 
 class DCASEEventDataset(Dataset):
@@ -26,26 +26,23 @@ class DCASEEventDataset(Dataset):
     def __init__(
         self,
         annotations: List[Path],
-        config: Config,
+        cfg: DictConfig,
     ) -> None:
         """
         Initialize the DCASEEventDataset.
 
         Args:
             annotations: List of paths to annotation CSV files.
-            config: Configuration object (required).
-
-        Raises:
-            ValueError: If config is not provided.
+            cfg: Hydra DictConfig with annotations and data settings.
         """
         super().__init__()
 
-        self.config = config
+        self.cfg = cfg
 
         # Use AnnotationService to load and parse annotations
         self.annotation_service = AnnotationService(
-            positive_label=config.POSITIVE_LABEL,
-            class_name=config.CLASS_NAME,
+            positive_label=cfg.annotations.positive_label,
+            class_name=cfg.annotations.class_name,
         )
 
         annotation_paths = annotations
@@ -57,7 +54,7 @@ class DCASEEventDataset(Dataset):
         if not self.examples:
             raise RuntimeError(
                 f"No positive events found in annotations. "
-                f"Check CSV format (columns) and positive_label='{config.POSITIVE_LABEL}'."
+                f"Check CSV format (columns) and positive_label='{cfg.annotations.positive_label}'."
             )
 
     def __len__(self) -> int:
@@ -78,37 +75,22 @@ class DCASEEventDataset(Dataset):
             wav_path=ex.wav_path,
             start_time=ex.start_time,
             end_time=ex.end_time,
-            config=self.config,
+            cfg=self.cfg,
         )
         tensor = torch.from_numpy(logmel)[None, ...]  # (1, n_mels, T)
         label = ex.class_id
         return tensor, label
 
     def get_num_classes(self) -> int:
-        """
-        Return the number of unique classes.
-
-        Returns:
-            int: The number of unique classes.
-        """
+        """Return the number of unique classes."""
         return len(self.class_to_idx)
 
     def get_class_to_idx(self) -> Dict[str, int]:
-        """
-        Return the mapping from class names to indices.
-
-        Returns:
-            Dict[str, int]: The mapping from class names to indices.
-        """
+        """Return the mapping from class names to indices."""
         return self.class_to_idx.copy()
 
     def get_idx_to_class(self) -> Dict[int, str]:
-        """
-        Return the mapping from indices to class names.
-
-        Returns:
-            Dict[int, str]: The mapping from indices to class names.
-        """
+        """Return the mapping from indices to class names."""
         return {v: k for k, v in self.class_to_idx.items()}
 
 
@@ -126,29 +108,23 @@ class FewShotEpisodeDataset(Dataset):
     def __init__(
         self,
         base_dataset: DCASEEventDataset,
-        config: Config,
+        cfg: DictConfig,
     ) -> None:
         """
         Initialize the FewShotEpisodeDataset.
 
         Args:
             base_dataset: The underlying DCASEEventDataset.
-            config: Configuration object (required).
-
-        Raises:
-            ValueError: If config is not provided.
+            cfg: Hydra DictConfig with episodes settings.
         """
         super().__init__()
 
-        if config is None:
-            raise ValueError("config is required and cannot be None")
-
         self.base_dataset = base_dataset
-        self.k_way = config.N_WAY
-        self.n_shot = config.K_SHOT
-        self.n_query = config.N_QUERY
-        self.max_frames = config.MAX_FRAMES
-        self.num_episodes = config.EPISODES_PER_EPOCH
+        self.k_way = cfg.episodes.n_way
+        self.n_shot = cfg.episodes.k_shot
+        self.n_query = cfg.episodes.n_query
+        self.max_frames = cfg.annotations.max_frames
+        self.num_episodes = cfg.episodes.episodes_per_epoch
 
         # Map from class_id to list of indices in base_dataset
         self.class_to_indices: Dict[int, List[int]] = {}
@@ -212,16 +188,7 @@ class FewShotEpisodeDataset(Dataset):
         T_max = self.max_frames
 
         def crop_pad(t: torch.Tensor, T_max: int) -> torch.Tensor:
-            """
-            Crop or pad tensor to fixed time dimension.
-
-            Args:
-                t: The tensor to crop or pad.
-                T_max: The maximum time dimension.
-
-            Returns:
-                The cropped or padded tensor.
-            """
+            """Crop or pad tensor to fixed time dimension."""
             T = t.shape[-1]
             if T > T_max:
                 t = t[..., :T_max]
