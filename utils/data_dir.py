@@ -1,7 +1,8 @@
-from config import Config
 from pathlib import Path
+from typing import Optional
 
-config = Config()
+from omegaconf import DictConfig
+
 
 def _is_virtual_env(path: Path) -> bool:
     """
@@ -27,13 +28,16 @@ def _is_virtual_env(path: Path) -> bool:
     ]
     return any(pattern in path_str for pattern in venv_patterns)
 
-def list_directories(folder_path: Path = config.DATA_DIR) -> list[Path]:
+
+def list_directories(folder_path: Path) -> list[Path]:
     return [d for d in folder_path.iterdir() if d.is_dir() and not _is_virtual_env(d)]
 
-def list_files(folder_path: Path = config.DATA_DIR) -> list[Path]:
+
+def list_files(folder_path: Path) -> list[Path]:
     return [f for f in folder_path.iterdir() if f.is_file()]
 
-def list_all_files(folder_path: Path = config.DATA_DIR) -> list[Path]:
+
+def list_all_files(folder_path: Path) -> list[Path]:
     files = []
     for f in folder_path.rglob("*"):
         try:
@@ -46,7 +50,8 @@ def list_all_files(folder_path: Path = config.DATA_DIR) -> list[Path]:
             continue
     return files
 
-def list_all_directories(folder_path: Path = config.DATA_DIR) -> list[Path]:
+
+def list_all_directories(folder_path: Path) -> list[Path]:
     directories = []
     for d in folder_path.rglob("*"):
         try:
@@ -58,13 +63,3 @@ def list_all_directories(folder_path: Path = config.DATA_DIR) -> list[Path]:
             # Skip directories we don't have permission to access
             continue
     return directories
-
-
-if __name__ == "__main__":
-    # print(list_directories())
-    # print(list_files())
-    # print(list_all_files())
-    # print(list_all_directories())
-    dirs = list_directories()
-    for d in dirs:
-        print(f"Directory: {d}\n")

@@ -1,9 +1,12 @@
-from utils.config import Config
 from pathlib import Path
 
+from omegaconf import DictConfig
+
+
 class ListData:
-    def __init__(self, config: Config):
-        self.config = config
+    def __init__(self, cfg: DictConfig):
+        self.cfg = cfg
+        self.data_dir = Path(cfg.data.data_dir)
         self.directories_mapping = {
             "HT": "Hyenas",
             "WMW": "Western Mediterranean Wetlands Birds",
@@ -38,59 +41,36 @@ class ListData:
         return any(pattern in path_str for pattern in venv_patterns)
 
     def list_directories(self) -> None:
-        for dir in self.config.DATA_DIR.iterdir():
+        for dir in self.data_dir.iterdir():
             if dir.is_dir() and not dir.name.startswith('.') and not self._is_virtual_env(dir):
                 print(dir.name)
 
     def list_training_directories(self) -> None:
-        for dir in self.config.DATA_DIR.iterdir():
+        for dir in self.data_dir.iterdir():
             if dir.is_dir() and dir.name.startswith('Training') and not self._is_virtual_env(dir):
                 for subdir in dir.iterdir():
                     if subdir.is_dir() and not subdir.name.startswith('.') and not self._is_virtual_env(subdir):
-                        print(f"{self.directories_mapping[subdir.name]}: {subdir.name}")
+                        print(f"{self.directories_mapping.get(subdir.name, subdir.name)}: {subdir.name}")
 
     def list_validation_directories(self) -> None:
-        for dir in self.config.DATA_DIR.iterdir():
+        for dir in self.data_dir.iterdir():
             if dir.is_dir() and dir.name.startswith('Validation') and not self._is_virtual_env(dir):
                 for subdir in dir.iterdir():
                     if subdir.is_dir() and not subdir.name.startswith('.') and not self._is_virtual_env(subdir):
-                        print(f"{self.directories_mapping[subdir.name]}: {subdir.name}")
+                        print(f"{self.directories_mapping.get(subdir.name, subdir.name)}: {subdir.name}")
 
     def list_evaluation_directories(self) -> None:
-        for dir in self.config.DATA_DIR.iterdir():
+        for dir in self.data_dir.iterdir():
             if dir.is_dir() and dir.name.startswith('Evaluation') and not self._is_virtual_env(dir):
                 for subdir in dir.iterdir():
                     if subdir.is_dir() and not subdir.name.startswith('.') and not self._is_virtual_env(subdir):
-                        print(f"{self.directories_mapping[subdir.name]}: {subdir.name}")
+                        print(f"{self.directories_mapping.get(subdir.name, subdir.name)}: {subdir.name}")
 
     def list_all_audio_files(self) -> None:
-        for dir in self.config.DATA_DIR.iterdir():
+        for dir in self.data_dir.iterdir():
             if dir.is_dir() and not dir.name.startswith('.') and not self._is_virtual_env(dir):
                 for subdir in dir.iterdir():
                     if subdir.is_dir() and not subdir.name.startswith('.') and not self._is_virtual_env(subdir):
                         for file in subdir.iterdir():
                             if file.is_file() and file.name.endswith('.wav'):
                                 print(f"{subdir.name}: {file.name}")
-
-if __name__ == "__main__":
-    config = Config()
-    list_data = ListData(config)
-    print("-"*40)
-    print("Metadata information: \n")
-    print("-"*40)
-
-    print("\n\n")
-    print("Data directories: \n")
-    list_data.list_directories()
-
-    print("\n\n")
-    print("Training directories: \n")
-    list_data.list_training_directories()
-
-    print("\n\n")
-    print("Validation directories: \n")
-    list_data.list_validation_directories()
-
-    print("\n\n")
-    print("Evaluation directories: \n")
-    list_data.list_evaluation_directories()
