@@ -1,9 +1,21 @@
-# v1 Architecture: Simple CNN encoder with prototypical network
 name: v1
 
 model:
   encoder_type: conv4
   embedding_dim: 128
   conv_channels: [32, 64, 128, 256]
-  distance: euclidean  # euclidean or cosine
+  distance: euclidean
+
+episodes:
+  n_way: 5
+  k_shot: 5
+  n_query: 10
+  episodes_per_epoch: 1000
+  val_episodes: 100
+  test_episodes: 100
+
+training:
+  learning_rate: 1e-3
+  weight_decay: 1e-4
+  max_epochs: 10
 

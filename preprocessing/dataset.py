@@ -120,11 +120,11 @@ class FewShotEpisodeDataset(Dataset):
         super().__init__()
 
         self.base_dataset = base_dataset
-        self.k_way = cfg.episodes.n_way
-        self.n_shot = cfg.episodes.k_shot
-        self.n_query = cfg.episodes.n_query
+        self.k_way = cfg.arch.episodes.n_way
+        self.n_shot = cfg.arch.episodes.k_shot
+        self.n_query = cfg.arch.episodes.n_query
         self.max_frames = cfg.annotations.max_frames
-        self.num_episodes = cfg.episodes.episodes_per_epoch
+        self.num_episodes = cfg.arch.episodes.episodes_per_epoch
 
         # Map from class_id to list of indices in base_dataset
         self.class_to_indices: Dict[int, List[int]] = {}

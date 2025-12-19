@@ -1,32 +1,34 @@
 from __future__ import annotations
 
-import logging
 from pathlib import Path
+from typing import List
 
 from omegaconf import DictConfig
+from lightning.pytorch.loggers import TensorBoardLogger, CSVLogger, Logger
 
 
-def setup_logger(cfg: DictConfig, name: str = "proto") -> logging.Logger:
+def setup_logger(cfg: DictConfig, name: str = "proto") -> List[Logger]:
     """
-    Setup the logger using Hydra config settings.
+    Setup PyTorch Lightning loggers using Hydra config settings.
 
     Args:
         cfg: Hydra DictConfig with runtime.log_dir.
         name: Logger name.
 
     Returns:
-        logging.Logger: Configured logger instance.
+        List[Logger]: List of configured PyTorch Lightning logger instances.
     """
     log_dir = Path(cfg.runtime.log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
     
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    file_handler = logging.FileHandler(log_dir / "log.txt")
-    file_handler.setFormatter(formatter)
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(formatter)
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
-    logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
-    return logger
+    tb_logger = TensorBoardLogger(
+        save_dir=log_dir,
+        name=name,
+        default_hp_metric=False
+    )
+    csv_logger = CSVLogger(
+        save_dir=log_dir,
+        name=name
+    )
+    
+    return [tb_logger, csv_logger]
