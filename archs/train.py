@@ -68,28 +68,29 @@ def main(cfg: DictConfig) -> None:
     arch_name = cfg.arch.name
     device = resolve_device(cfg)
 
-    logger = setup_logger(cfg, name=f"proto_{arch_name}")
+    # Setup Lightning loggers (for consistency, though this script doesn't use Trainer)
+    loggers = setup_logger(cfg, name=f"proto_{arch_name}")
 
-    logger.info(f"Training architecture: {arch_name}")
-    logger.info(f"Device: {device}")
+    print(f"Training architecture: {arch_name}")
+    print(f"Device: {device}")
 
     # Make the few shot dataloaders
     train_loader, val_loader = make_fewshot_dataloaders(cfg=cfg)
 
-    logger.info("Training and Validation dataloaders created successfully")
+    print("Training and Validation dataloaders created successfully")
 
     # Instantiate the model
-    logger.info("Instantiating the model ...")
+    print("Instantiating the model ...")
     model = get_model(cfg).to(device)
 
-    lr = cfg.training.learning_rate
-    weight_decay = cfg.training.weight_decay
-    max_epochs = cfg.training.max_epochs
+    lr = cfg.arch.training.learning_rate
+    weight_decay = cfg.arch.training.weight_decay
+    max_epochs = cfg.arch.training.max_epochs
 
-    logger.info(f"Setting Optimizer: AdamW (lr={lr}, weight_decay={weight_decay})")
+    print(f"Setting Optimizer: AdamW (lr={lr}, weight_decay={weight_decay})")
     optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-    logger.info(f"Number of epochs: {max_epochs}")
+    print(f"Number of epochs: {max_epochs}")
 
     for epoch in range(1, max_epochs + 1):
         model.train()
@@ -115,7 +116,7 @@ def main(cfg: DictConfig) -> None:
             batches += 1
 
         avg_loss = running_loss / max(1, batches)
-        logger.info(f"Epoch {epoch}: train loss = {avg_loss:.4f}")
+        print(f"Epoch {epoch}: train loss = {avg_loss:.4f}")
 
         # Validation
         if val_loader is not None:
@@ -136,14 +137,14 @@ def main(cfg: DictConfig) -> None:
                     val_batches += 1
 
             avg_val_loss = val_loss / max(1, val_batches)
-            logger.info(f"[Result] Epoch {epoch}: val loss = {avg_val_loss:.4f}")
+            print(f"[Result] Epoch {epoch}: val loss = {avg_val_loss:.4f}")
 
     # Save the model
     ckpt_dir = Path(cfg.runtime.ckpt_dir)
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     ckpt_path = ckpt_dir / f"protonet_{arch_name}_epoch{epoch}.pt"
     torch.save(model.state_dict(), ckpt_path)
-    logger.info(f"Saved model checkpoint to {ckpt_path}")
+    print(f"Saved model checkpoint to {ckpt_path}")
 
 
 if __name__ == "__main__":
