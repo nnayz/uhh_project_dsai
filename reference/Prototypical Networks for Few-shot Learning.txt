@@ -1,0 +1,89 @@
+### Prototypical Networks for Few-shot Learning
+
+Imagine you're teaching a computer to recognize different types of animals. In traditional machine learning, you'd need to show it thousands of pictures of cats, dogs, birds, etc., for it to learn reliably. 
+But humans can learn new things quickly—for example, if I show you one or two pictures of a rare animal like a pangolin and tell you what it is, you could probably spot another one right away. 
+**Few-shot learning** is a branch of AI that tries to mimic this human ability. It focuses on training models to classify new categories (or "classes") using very few examples—often just 1 ("one-shot") or 5 ("5-shot") per new class.
+
+The challenge is overfitting: with so little data, the model might memorize the examples instead of generalizing. 
+Few-shot learning often uses techniques like "meta-learning" (learning how to learn) or embedding data into a space where similarities are easy to measure. T
+his paper introduces a simple yet powerful method called **prototypical networks** to handle this, and it also extends to **zero-shot learning**, where no examples are given—just descriptions (like attributes) of the new classes.
+
+### Summary of the Paper
+
+This paper (arXiv:1703.05175v2, published in 2017 by Jake Snell, Kevin Swersky, and Richard S. Zemel), proposes a straightforward approach to few-shot and zero-shot classification. The core idea is to learn a metric space (via a neural network) where each class is represented by a single "prototype" (the average embedding of its few examples). New items are classified by measuring their distance to these prototypes—the closest one wins.
+
+The authors argue that in data-scarce scenarios, simpler models with basic assumptions (like assuming data clusters around class means) outperform complex ones. They train the model using "episodic training," where mini-batches simulate few-shot tasks to make training match testing. The method is efficient, avoids overfitting, and achieves state-of-the-art (SOTA) results on benchmarks like Omniglot (handwritten characters), miniImageNet (images), and CUB-200 (birds for zero-shot).
+
+Key contributions:
+- Formulates prototypical networks for both few-shot (using examples) and zero-shot (using meta-data like attributes).
+- Shows connections to clustering, mixture models, and linear classifiers.
+- Analyzes design choices (e.g., Euclidean distance works better than cosine) and compares to prior work like matching networks.
+- Demonstrates superior performance without fancy add-ons.
+
+The paper concludes that this simplicity makes prototypical networks promising, and suggests exploring other distances beyond Euclidean.
+
+#### Key Concepts and Method
+- **Problem Setup**: In few-shot learning, we have a "support set" (few labeled examples per new class) and a "query set" (unlabeled items to classify). The goal is to generalize to unseen classes.
+- **Prototypical Networks Model**:
+  - Use a neural network \( f_\phi \) to embed inputs into a feature space.
+  - For each class  k , compute a prototype  c_k  as the mean of its embedded support examples: \( c_k = \frac{1}{|S_k|} \sum_{(x_i, y_i) \in S_k} f_\phi(x_i) \).
+  - Classify a query  x  via softmax over distances: \( p_\phi(y = k|x) = \frac{\exp(-d(f_\phi(x), c_k))}{\sum_{k'} \exp(-d(f_\phi(x), c_{k'}))} \), where  d  is a distance (like squared Euclidean).
+  - Train by minimizing negative log-probability on episodic batches.
+
+- **Episodic Training**: Simulates test scenarios. Sample classes, then split into support and query points per class. This makes training "faithful" to testing.
+- **Zero-Shot Extension**: Instead of examples, use meta-data (e.g., attributes like "has wings") embedded as prototypes. Query images are embedded and compared similarly.
+
+- **Design Choices and Findings**:
+  - **Distance Metric**: Euclidean outperforms cosine (common in prior work) because cosine isn't a Bregman divergence.
+  - **Episode Composition**: Train with more classes ("higher way") than test (e.g., 20-30 way for 5-way test) improves generalization. Match "shot" (examples per class) between train and test.
+  - Simpler than meta-learners like LSTM-based ones, yet better.
+
+#### Experiments and Results
+The authors test on three datasets, achieving SOTA at the time.
+
+- **Omniglot (Few-Shot)**: 1623 handwritten characters from 50 alphabets, augmented with rotations. Trained on 1200 characters.
+  - Embedding: 4-block CNN (64 filters, 3x3 conv, batch norm, ReLU, 2x2 max-pool).
+  - Results (averaged over 1000 test episodes):
+
+| Model                  | Distance | Fine-Tune | 5-way 1-shot | 5-way 5-shot | 20-way 1-shot | 20-way 5-shot |
+|------------------------|----------|-----------|--------------|--------------|---------------|---------------|
+| Matching Networks [29] | Cosine   | N         | 98.1%        | 98.9%        | 93.8%         | 98.5%         |
+| Neural Statistician [6] | -        | N         | 98.1%        | 99.5%        | 93.2%         | 98.1%         |
+| Prototypical Networks  | Euclid.  | N         | **98.8%**    | **99.7%**    | **96.0%**     | **98.9%**     |
+
+  - Higher training "way" (e.g., 60) boosts performance.
+
+- **miniImageNet (Few-Shot)**: 60,000 images from 100 classes (64 train, 16 val, 20 test).
+  - Embedding: Similar 4-block CNN, 1600-dim output.
+  - Results (averaged over 600 test episodes, with 95% CI):
+
+| Model                  | Distance | Fine-Tune | 5-way 1-shot      | 5-way 5-shot      |
+|------------------------|----------|-----------|-------------------|-------------------|
+| Baseline NN*           | Cosine   | N         | 28.86 ± 0.54%     | 49.79 ± 0.79%     |
+| Matching Networks [29]*| Cosine   | N         | 43.40 ± 0.78%     | 51.09 ± 0.71%     |
+| Matching Nets FCE [29]*| Cosine   | N         | 43.56 ± 0.84%     | 55.31 ± 0.73%     |
+| Meta-Learner LSTM [22]*| -        | N         | 43.44 ± 0.77%     | 60.60 ± 0.71%     |
+| Prototypical Networks  | Euclid.  | N         | **49.42 ± 0.78%** | **68.20 ± 0.66%** |
+
+  - Euclidean and higher training way (20-30) significantly improve results over cosine or low way.
+
+- **CUB-200 (Zero-Shot)**: 11,788 bird images from 200 species (100 train, 50 val, 50 test). Uses 312-dim attribute vectors as meta-data.
+  - Embedding: Linear mapping on GoogLeNet features (1024-dim).
+  - Results (50-way 0-shot):
+
+| Model              | Image Features | Accuracy |
+|--------------------|----------------|----------|
+| ALE [1]            | Fisher         | 26.9%    |
+| SJE [2]            | AlexNet        | 40.3%    |
+| Sample Clustering [17] | AlexNet    | 44.3%    |
+| SJE [2]            | GoogLeNet      | 50.1%    |
+| DS-SJE [23]        | GoogLeNet      | 50.4%    |
+| DA-SJE [23]        | GoogLeNet      | 50.9%    |
+| Prototypical Nets  | GoogLeNet      | **54.6%**|
+
+  - Normalizing prototypes helps since images and attributes are from different domains.
+
+#### Limitations and Future Work (from Conclusion)
+- Assumes simple inductive bias (e.g., spherical Gaussians via Euclidean).
+- Suggests trying other Bregman divergences for non-Gaussian assumptions.
+- No need for per-class variances in experiments, as embedding network provides flexibility.
