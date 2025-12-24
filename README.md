@@ -1,48 +1,174 @@
-## Meta Learning on Bioacoustics
+# DCASE Few-Shot Bioacoustic Classification
 
-Few-shot classification of animal vocalisations using Prototypical Networks. Each training step is an episodic task (N-way, K-shot) so the model can adapt quickly to new species or call types from only a handful of labelled clips.
+Few-shot classification of animal vocalizations using Prototypical Networks. The model uses episodic training (N-way, K-shot) to adapt quickly to new species or call types from only a handful of labeled clips.
 
-### Repo layout (key bits)
-- `main.py`: Click CLI; `train` runs either the baseline or the new `v1` ProtoNet trainer, and data listing helpers remain available.
-- `archs/v1/`: `arch.py` (ProtoNet + encoder) and `train.py` (full training loop, checkpointing, logging).
-- `preprocessing/`: Annotation parsing (`ann_service.py`), flat dataset + episodic sampler (`dataset.py`), and dataloader builders (`dataloaders.py`).
-- `utils/config.py`: Central config dataclass (data paths, episodes, model + optimizer settings, device).
-- `utils/logger.py`: File + stdout logger (`runs/proto/logs/log.txt` by default).
+## Quick Start
 
-### Data & annotations
-- Defaults point to CSV annotation globs:
-  - train: `/data/msc-proj/Training_Set/**/*.csv`
-  - val: `/data/msc-proj/Validation_Set_DSAI_2025_2026/**/*.csv`
-  - test: `/data/msc-proj/Evaluation_Set_DSAI_2025_2026/**/*.csv`
-- Audio files are expected beside the CSVs. Supported CSV formats (see `preprocessing/ann_service.py`):
-  - Single-class with `Q` column (rows marked `POS` kept).
-  - Explicit class name via `Config.CLASS_NAME` + `Q`.
-  - Multi-class `CLASS_*` columns (keep rows where column == `POS`).
-  - Fallback: `Audiofilename/Starttime/Endtime` only (all rows treated as positives for that file’s class).
-- Update `Config` paths if your data lives elsewhere.
-
-### Running
 ```bash
-# install (example)
+# Install
 pip install -e .
 
-# explore data root
-python main.py list-data-dir --type all
-python main.py list-all-audio-files
+# 1. Extract features (run once)
+python main.py extract-features
 
-# train (baseline or v1)
+# 2. Train the model
 python main.py train v1
-```
-Training logs to `runs/proto/logs/log.txt`; checkpoints save to `runs/proto/checkpoints/protonet_v1_epoch*.pt`.
 
-### Config tips
-- Override defaults when constructing `Config`, e.g.:
-  ```python
-  cfg = Config(
-      TRAIN_ANNOTATION_FILES=[Path("/path/to/train/*.csv")],
-      VAL_ANNOTATION_FILES=[Path("/path/to/val/*.csv")],
-      DISTANCE=Config.Distance.COSINE,
-      MAX_EPOCHS=20,
-  )
-  ```
-- Episode shape: `N_WAY`, `K_SHOT`, `N_QUERY`, `EPISODES_PER_EPOCH` govern sampler behaviour; `MAX_FRAMES` pads/crops time dimension of spectrograms.
+# 3. Test the model
+python main.py test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
+```
+
+## Training Pipeline
+
+The pipeline follows a two-phase design:
+
+```
+Phase 1 (offline, run once):
+  .wav audio → feature extraction → .npy cached features
+
+Phase 2 (online, repeated):
+  .npy features → PyTorch Lightning training → model checkpoints
+```
+
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `train` | Train model with PyTorch Lightning |
+| `test` | Test a trained checkpoint |
+| `extract-features` | Extract and cache audio features |
+| `cache-info` | Show cached feature statistics |
+| `verify-cache` | Verify cache integrity |
+
+### Training Examples
+
+```bash
+# Basic training
+python main.py train v1
+
+# Custom experiment name
+python main.py train v1 --exp-name my_experiment
+
+# Override hyperparameters
+python main.py train v1 arch.training.max_epochs=100 arch.training.learning_rate=0.0005
+
+# Change episode configuration
+python main.py train v1 train_param.k_way=5 train_param.n_shot=3
+```
+
+See [docs/CLI_USAGE.md](docs/CLI_USAGE.md) for complete documentation.
+
+## Project Structure
+
+```
+├── main.py                 # CLI entry point
+├── conf/                   # Hydra configuration
+│   ├── config.yaml         # Main config
+│   ├── arch/v1.yaml        # V1 architecture config
+│   ├── callbacks/          # Training callbacks
+│   └── logger/             # MLflow logger config
+├── archs/
+│   ├── train.py            # Lightning trainer
+│   └── v1/                 # V1 architecture
+│       ├── arch.py         # ProtoNet model
+│       └── lightning_module.py
+├── preprocessing/
+│   ├── preprocess.py       # Audio to features
+│   ├── feature_cache.py    # Feature caching
+│   ├── datamodule.py       # Lightning DataModule
+│   └── dataset.py          # Dataset classes
+├── utils/
+│   ├── mlflow_logger.py    # MLflow logging
+│   └── distance.py         # Distance metrics
+└── docs/
+    ├── CLI_USAGE.md        # CLI documentation
+    └── FEATURES_AND_DATAFLOW.md
+```
+
+## Configuration
+
+Configuration uses Hydra. Key parameters:
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `arch.training.max_epochs` | Training epochs | 50 |
+| `arch.training.learning_rate` | Learning rate | 0.001 |
+| `train_param.k_way` | N-way (classes/episode) | 10 |
+| `train_param.n_shot` | K-shot (samples/class) | 5 |
+| `train_param.num_episodes` | Episodes/epoch | 2000 |
+| `features.sr` | Sample rate | 22050 |
+| `features.n_mels` | Mel bands | 128 |
+
+Override via CLI:
+```bash
+python main.py train v1 arch.training.learning_rate=0.0005
+```
+
+Or edit `conf/config.yaml` directly.
+
+## Data Format
+
+### Directory Structure
+
+```
+/data/msc-proj/
+  Training_Set/
+    BV/
+      BV_file1.wav
+      BV_file1.csv
+  Validation_Set_DSAI_2025_2026/
+    ...
+```
+
+### Annotation CSV Format
+
+CSV files with columns:
+- `Audiofilename`: Audio file name
+- `Starttime`: Segment start (seconds)
+- `Endtime`: Segment end (seconds)
+- `Q` or `CLASS_*`: Label (POS/NEG/UNK)
+
+## MLflow Tracking
+
+Training logs are tracked with MLflow:
+
+```bash
+# View training logs
+mlflow ui --backend-store-uri outputs/protonet_baseline/v1_run/mlruns
+```
+
+Open http://localhost:5000 in your browser.
+
+## Feature Caching
+
+Features are cached as `.npy` files for fast training:
+
+```bash
+# Extract features (run once)
+python main.py extract-features
+
+# Check cache status
+python main.py cache-info
+
+# Force re-extraction after config change
+python main.py extract-features --force
+```
+
+Cache location: `{data_dir}/features_cache/{version}/{config_hash}/`
+
+## Requirements
+
+- Python 3.10+
+- PyTorch 2.0+
+- PyTorch Lightning
+- Hydra
+- librosa
+- MLflow (optional, for tracking)
+
+```bash
+pip install -e .
+```
+
+## License
+
+This project is for educational purposes as part of the DCASE challenge.
