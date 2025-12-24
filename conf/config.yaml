@@ -1,6 +1,14 @@
 defaults:
   - arch: v1
+  - logger: mlflow
+  - log_dir: default.yaml
   - _self_
+
+# Ignore python warnings for a cleaner terminal
+ignore_warnings: True
+
+# Seed for random number generators
+seed: 42
 
 data:
   sampling_rate: 16000
@@ -9,6 +17,23 @@ data:
   frame_length: 0.025
   hop_length: 0.010
   normalize: true
+
+# Feature caching configuration
+features:
+  # Root directory for cached features (relative to project or absolute)
+  cache_dir: ${data.data_dir}/features_cache
+  # Version tag for feature configuration (allows multiple feature versions)
+  version: v1
+  # Whether to use cached features (if False, compute on-the-fly)
+  use_cache: true
+  # Force re-extraction even if cache exists
+  force_recompute: false
+  # File format for cached features
+  format: npy
+  # Whether to normalize features after extraction
+  normalize: true
+  # Normalization mode: 'global' (per-dataset stats) or 'per_sample'
+  normalize_mode: per_sample
 
 annotations:
   train_files:
@@ -25,6 +50,7 @@ annotations:
 
 runtime:
   device: auto
-  num_workers: 2
+  num_workers: 4
+  prefetch_factor: 2
   log_dir: runs/${arch.name}/logs
   ckpt_dir: runs/${arch.name}/checkpoints

@@ -129,6 +129,35 @@ class ProtoNetLightningModule(L.LightningModule):
         )
         return loss
 
+    def test_step(
+        self,
+        batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
+        batch_idx: int
+    ) -> torch.Tensor:
+        """
+        Test step.
+
+        Args:
+            batch: (support_x, support_y, query_x, query_y)
+            batch_idx: batch index
+        Returns:
+            loss: scalar
+        """
+        support_x, support_y, query_x, query_y = [t.squeeze(0) for t in batch]
+        loss, logits = self(support_x, support_y, query_x, query_y)
+        mapped_query_y = self._map_labels(support_y, query_y)
+        acc = (logits.argmax(dim=1) == mapped_query_y).float().mean()
+
+        self.log_dict({
+            "test_loss": loss,
+            "test_acc": acc
+        },
+        prog_bar=True,
+        on_step=False,
+        on_epoch=True
+        )
+        return loss
+
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """
         Configure the optimizer.
