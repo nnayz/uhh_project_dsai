@@ -75,11 +75,16 @@ def compute_config_hash(cfg: DictConfig) -> str:
     This ensures cached features are invalidated when config changes.
     
     Args:
+<<<<<<< HEAD
         cfg: Hydra DictConfig with features settings.
+=======
+        cfg: Hydra DictConfig with data and features settings.
+>>>>>>> f21206b (feat: feature cachine, reduced train time)
         
     Returns:
         A hex string hash of the relevant config values.
     """
+<<<<<<< HEAD
     # Support both new config format (features section) and legacy (data section)
     if hasattr(cfg, "features") and hasattr(cfg.features, "sr"):
         relevant_keys = {
@@ -110,6 +115,17 @@ def compute_config_hash(cfg: DictConfig) -> str:
     elif hasattr(cfg, "train_param") and hasattr(cfg.train_param, "seg_len"):
         relevant_keys["min_duration"] = cfg.train_param.seg_len
     
+=======
+    relevant_keys = {
+        "sampling_rate": cfg.data.sampling_rate,
+        "n_mels": cfg.data.n_mels,
+        "frame_length": cfg.data.frame_length,
+        "hop_length": cfg.data.hop_length,
+        "normalize": cfg.features.normalize,
+        "normalize_mode": cfg.features.normalize_mode,
+        "min_duration": cfg.annotations.min_duration,
+    }
+>>>>>>> f21206b (feat: feature cachine, reduced train time)
     config_str = json.dumps(relevant_keys, sort_keys=True)
     return hashlib.md5(config_str.encode()).hexdigest()[:12]
 
