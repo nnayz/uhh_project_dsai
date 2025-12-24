@@ -75,20 +75,41 @@ def compute_config_hash(cfg: DictConfig) -> str:
     This ensures cached features are invalidated when config changes.
     
     Args:
-        cfg: Hydra DictConfig with data and features settings.
+        cfg: Hydra DictConfig with features settings.
         
     Returns:
         A hex string hash of the relevant config values.
     """
-    relevant_keys = {
-        "sampling_rate": cfg.data.sampling_rate,
-        "n_mels": cfg.data.n_mels,
-        "frame_length": cfg.data.frame_length,
-        "hop_length": cfg.data.hop_length,
-        "normalize": cfg.features.normalize,
-        "normalize_mode": cfg.features.normalize_mode,
-        "min_duration": cfg.annotations.min_duration,
-    }
+    # Support both new config format (features section) and legacy (data section)
+    if hasattr(cfg, "features") and hasattr(cfg.features, "sr"):
+        relevant_keys = {
+            "sr": cfg.features.sr,
+            "n_mels": cfg.features.n_mels,
+            "n_fft": cfg.features.n_fft,
+            "hop_mel": cfg.features.hop_mel,
+            "fmin": cfg.features.fmin,
+            "fmax": cfg.features.fmax,
+            "feature_types": cfg.features.feature_types,
+            "normalize": cfg.features.normalize,
+            "normalize_mode": cfg.features.normalize_mode,
+        }
+    else:
+        # Legacy config format
+        relevant_keys = {
+            "sr": cfg.data.sampling_rate,
+            "n_mels": cfg.data.n_mels,
+            "frame_length": cfg.data.frame_length,
+            "hop_length": cfg.data.hop_length,
+            "normalize": getattr(cfg.features, "normalize", True),
+            "normalize_mode": getattr(cfg.features, "normalize_mode", "per_sample"),
+        }
+    
+    # Add min_duration if available
+    if hasattr(cfg, "annotations") and hasattr(cfg.annotations, "min_duration"):
+        relevant_keys["min_duration"] = cfg.annotations.min_duration
+    elif hasattr(cfg, "train_param") and hasattr(cfg.train_param, "seg_len"):
+        relevant_keys["min_duration"] = cfg.train_param.seg_len
+    
     config_str = json.dumps(relevant_keys, sort_keys=True)
     return hashlib.md5(config_str.encode()).hexdigest()[:12]
 

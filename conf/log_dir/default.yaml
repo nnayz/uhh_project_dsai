@@ -1,0 +1,11 @@
+# Log directory configuration
+# This sets up the output directory structure for experiments
+
+# Hydra output directory pattern
+hydra:
+  run:
+    dir: outputs/${name}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: outputs/${name}/multirun/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${hydra.job.num}
+

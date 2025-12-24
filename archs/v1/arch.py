@@ -1,55 +1,122 @@
+"""
+Prototypical Network architecture for few-shot bioacoustic classification.
+
+This implements the baseline v1 architecture with a Conv4 encoder
+and prototype-based classification.
+"""
+
 from __future__ import annotations
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Tuple
+from typing import List, Tuple, Union
 
 from utils.distance import Distance
 
-class ConvEncoder(nn.Module):
+
+def get_activation(name: str) -> nn.Module:
+    """Get activation function by name."""
+    activations = {
+        "relu": nn.ReLU(inplace=True),
+        "leaky_relu": nn.LeakyReLU(0.2, inplace=True),
+        "elu": nn.ELU(inplace=True),
+        "gelu": nn.GELU(),
+    }
+    if name not in activations:
+        raise ValueError(f"Unknown activation: {name}. Available: {list(activations.keys())}")
+    return activations[name]
+
+
+class ConvBlock(nn.Module):
+    """Single convolutional block with BatchNorm, activation, and pooling."""
+    
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 3,
+        padding: int = 1,
+        pool_size: int = 2,
+        activation: str = "leaky_relu",
+        with_bias: bool = False,
+        dropout: float = 0.0,
+    ) -> None:
+        super().__init__()
+        self.conv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
+            bias=with_bias,
+        )
+        self.bn = nn.BatchNorm2d(out_channels)
+        self.activation = get_activation(activation)
+        self.pool = nn.MaxPool2d(kernel_size=pool_size)
+        self.dropout = nn.Dropout2d(dropout) if dropout > 0 else nn.Identity()
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.conv(x)
+        x = self.bn(x)
+        x = self.activation(x)
+        x = self.pool(x)
+        x = self.dropout(x)
+        return x
+
+
+class Conv4Encoder(nn.Module):
     """
-    Simple CNN encoder for log-mel spectrograms.
+    4-block CNN encoder for log-mel spectrograms (baseline v1 architecture).
 
     Input: (B, 1, n_mels, T)
     Output: (B, emb_dim)
     """
+    
     def __init__(
         self,
         in_channels: int = 1,
-        emb_dim: int = 128
+        emb_dim: int = 2048,
+        conv_channels: List[int] = None,
+        activation: str = "leaky_relu",
+        with_bias: bool = False,
+        drop_rate: float = 0.1,
+        time_max_pool_dim: int = 4,
     ) -> None:
         super().__init__()
-        self.conv_block = nn.Sequential(
-            nn.Conv2d(
-                in_channels=in_channels,
-                out_channels=64,
-                kernel_size=3,
-                padding=1
-            ),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2),
-            nn.Conv2d(
-                in_channels=64,
-                out_channels=128,
-                kernel_size=3,
-                padding=1
-            ),
-            nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2),
-        )
-        self.global_pool = nn.AdaptiveAvgPool2d(1)
-        self.fc = nn.Linear(128, emb_dim)
-
+        
+        if conv_channels is None:
+            conv_channels = [64, 64, 64, 64]
+        
+        self.conv_blocks = nn.ModuleList()
+        
+        # Build conv blocks
+        in_ch = in_channels
+        for i, out_ch in enumerate(conv_channels):
+            self.conv_blocks.append(ConvBlock(
+                in_channels=in_ch,
+                out_channels=out_ch,
+                activation=activation,
+                with_bias=with_bias,
+                dropout=drop_rate if i > 0 else 0.0,  # No dropout on first layer
+            ))
+            in_ch = out_ch
+        
+        self.global_pool = nn.AdaptiveAvgPool2d((1, time_max_pool_dim))
+        self.flatten = nn.Flatten()
+        self.fc = nn.Linear(conv_channels[-1] * time_max_pool_dim, emb_dim)
+        self.dropout = nn.Dropout(drop_rate)
+    
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.conv_block(x)
+        for block in self.conv_blocks:
+            x = block(x)
+        
         x = self.global_pool(x)
-        x = x.view(x.size(0), -1)
+        x = self.flatten(x)
+        x = self.dropout(x)
         x = self.fc(x)
         x = F.normalize(x, p=2, dim=-1)
         return x
+
 
 class ProtoNet(nn.Module):
     """
@@ -64,18 +131,34 @@ class ProtoNet(nn.Module):
 
     def __init__(
         self,
-        emb_dim: int = 128,
-        distance: Distance = Distance.EUCLIDEAN
+        emb_dim: int = 2048,
+        distance: Union[str, Distance] = Distance.EUCLIDEAN,
+        in_channels: int = 1,
+        conv_channels: List[int] = None,
+        activation: str = "leaky_relu",
+        with_bias: bool = False,
+        drop_rate: float = 0.1,
+        time_max_pool_dim: int = 4,
     ) -> None:
         super().__init__()
-        self.encoder = ConvEncoder(in_channels=1, emb_dim=emb_dim)
+        
+        if isinstance(distance, str):
+            distance = Distance(distance.lower())
+        
+        self.encoder = Conv4Encoder(
+            in_channels=in_channels,
+            emb_dim=emb_dim,
+            conv_channels=conv_channels,
+            activation=activation,
+            with_bias=with_bias,
+            drop_rate=drop_rate,
+            time_max_pool_dim=time_max_pool_dim,
+        )
         self.distance = distance
 
     @staticmethod
     def euclidean_dist(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        """
-        Squared Euclidean distance between all rows of x and y.
-        """
+        """Squared Euclidean distance between all rows of x and y."""
         n = x.size(0)
         m = y.size(0)
         d = x.size(1)
@@ -88,12 +171,10 @@ class ProtoNet(nn.Module):
 
     @staticmethod
     def cosine_dist(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        """
-        Cosine distance = 1 - cosine similarity.
-        """
+        """Cosine distance = 1 - cosine similarity."""
         x_norm = F.normalize(x, dim=-1)
         y_norm = F.normalize(y, dim=-1)
-        sim = torch.matmul(x_norm, y_norm.t()) # (Nq, Nc)
+        sim = torch.matmul(x_norm, y_norm.t())
         return 1.0 - sim
 
     def _compute_prototypes(
@@ -102,13 +183,15 @@ class ProtoNet(nn.Module):
         """
         Compute class prototypes by averaging embeddings per class.
 
-        embeddings: (N, D)
-        labels:     (N,)
-        returns:
-            prototypes: (Nc, D) [Nc means number of classes]
-            class_ids:  (Nc,)
+        Args:
+            embeddings: (N, D)
+            labels: (N,)
+            
+        Returns:
+            prototypes: (Nc, D)
+            class_ids: (Nc,)
         """
-        class_ids = torch.unique(labels) # (Nc,)
+        class_ids = torch.unique(labels)
         protos = []
         for c in class_ids:
             mask = labels == c
@@ -124,11 +207,11 @@ class ProtoNet(nn.Module):
         query_y: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Run one few shot episode.
+        Run one few-shot episode.
 
         Returns:
-        loss: scalar
-        logits: (Nq, Nc)
+            loss: scalar
+            logits: (Nq, Nc)
         """
         device = next(self.parameters()).device
         support_x = support_x.to(device)
@@ -136,22 +219,19 @@ class ProtoNet(nn.Module):
         query_x = query_x.to(device)
         query_y = query_y.to(device)
 
-        emb_support = self.encoder(support_x) # (Ns, D)
-        emb_query = self.encoder(query_x) # (Nq, D)
+        emb_support = self.encoder(support_x)
+        emb_query = self.encoder(query_x)
 
         prototypes, class_ids = self._compute_prototypes(emb_support, support_y)
 
         if self.distance == Distance.EUCLIDEAN:
-            dists = self.euclidean_dist(emb_query, prototypes) # (Nq, Nc)
+            dists = self.euclidean_dist(emb_query, prototypes)
         else:
-            dists = self.cosine_dist(emb_query, prototypes) # (Nq, Nc)
+            dists = self.cosine_dist(emb_query, prototypes)
 
-        logits = -dists # closer = larger logit
+        logits = -dists
 
-        # map original labels -> [0..Nc-1]
-        label_map = {
-            int(c.item()): i for i, c in enumerate(class_ids)
-        }
+        label_map = {int(c.item()): i for i, c in enumerate(class_ids)}
         mapped_query_y = torch.tensor(
             [label_map[int(l.item())] for l in query_y],
             dtype=torch.long,
