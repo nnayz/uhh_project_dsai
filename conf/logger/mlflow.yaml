@@ -1,0 +1,15 @@
+# MLflow Logger configuration for PyTorch Lightning
+# Documentation: https://lightning.ai/docs/pytorch/stable/extensions/generated/lightning.pytorch.loggers.MLFlowLogger.html
+
+mlflow:
+  _target_: lightning.pytorch.loggers.MLFlowLogger
+  experiment_name: ${name}
+  run_name: ${exp_name}
+  tracking_uri: ${runtime.log_dir}/mlruns
+  tags:
+    arch: ${arch.name}
+    seed: ${seed}
+  save_dir: ${runtime.log_dir}
+  log_model: true
+  prefix: ""
+
