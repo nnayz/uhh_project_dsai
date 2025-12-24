@@ -3,7 +3,7 @@ CLI for DCASE Few-Shot Bioacoustic Project.
 
 This module provides command-line interface for:
 - Feature extraction (Phase 1)
-- Training (Phase 2)
+- Training with PyTorch Lightning (Phase 2)
 - Cache management
 - Data listing
 """
@@ -14,11 +14,10 @@ from pathlib import Path
 from hydra import compose, initialize_config_dir
 from omegaconf import DictConfig
 
-from schemas.model_choice import ModelChoice
 from utils.mlflow_logger import get_logger
 
 # Get global logger
-logger = get_logger(use_mlflow=False)  # CLI commands use console logging
+logger = get_logger(use_mlflow=False)
 
 
 def load_config(overrides: list = None) -> DictConfig:
@@ -41,7 +40,7 @@ def cli():
        python main.py extract-features
     
     2. Train model (Phase 2 - uses cached features):
-       python main.py train-lightning v1
+       python main.py train v1
     """
     pass
 
@@ -225,57 +224,94 @@ def list_all_audio_files():
     list_data.list_all_audio_files()
 
 
-# Training Commands (Phase 2)
+# Training Command (Phase 2) - Lightning only
 
-@cli.command("train", help="Train a particular architecture")
-@click.argument("arch-type", type=click.Choice([model.value for model in ModelChoice], case_sensitive=False))
-def train(arch_type):
-    """
-    Train the model with the given architecture.
-    
-    ARCH-TYPE: Architecture type to use (baseline or v1)
-    """
-    logger.info(f"Training the model with {arch_type} architecture...")
-    
-    if arch_type == ModelChoice.BASELINE.value:
-        from archs.baseline.train import main as baseline_train
-        baseline_train()
-    elif arch_type == ModelChoice.V1.value:
-        import subprocess
-        import sys
-        subprocess.run([sys.executable, "archs/train.py", f"arch={arch_type}"])
-
-
-@cli.command("train-lightning", help="Train with PyTorch Lightning (Phase 2)")
-@click.argument("arch-type", type=click.Choice([model.value for model in ModelChoice], case_sensitive=False))
+@cli.command("train", help="Train model with PyTorch Lightning (Phase 2)")
+@click.argument("arch", type=click.Choice(["v1"]), default="v1")
 @click.option(
     "--no-cache",
     is_flag=True,
     default=False,
     help="Disable feature caching (extract on-the-fly)"
 )
+@click.option(
+    "--exp-name", "-e",
+    type=str,
+    default=None,
+    help="Experiment name for this run"
+)
 @click.argument("overrides", nargs=-1)
-def train_lightning(arch_type, no_cache, overrides):
+def train(arch, no_cache, exp_name, overrides):
     """
-    Train the model with PyTorch Lightning using cached features.
+    Train the model with PyTorch Lightning.
     
-    ARCH-TYPE: Architecture type to use (baseline or v1)
-    OVERRIDES: Optional Hydra overrides (e.g., arch.training.learning_rate=0.0005)
+    ARCH: Architecture to use (currently only 'v1' supported)
+    
+    OVERRIDES: Optional Hydra config overrides
+    
+    Examples:
+    
+        python main.py train v1
+        
+        python main.py train v1 --exp-name my_experiment
+        
+        python main.py train v1 arch.training.max_epochs=100
+        
+        python main.py train v1 --no-cache
     """
     import subprocess
     import sys
     
-    if arch_type != ModelChoice.V1.value:
-        raise ValueError(f"Lightning training only supports v1 architecture, got {arch_type}")
-    
-    cmd = [sys.executable, "archs/train.py", f"arch={arch_type}"]
+    cmd = [sys.executable, "archs/train.py", f"arch={arch}"]
     
     if no_cache:
         cmd.append("features.use_cache=false")
     
+    if exp_name:
+        cmd.append(f"exp_name={exp_name}")
+    
     cmd.extend(overrides)
     
-    logger.info(f"Running: {' '.join(cmd)}")
+    logger.info(f"Starting training with PyTorch Lightning")
+    logger.info(f"Architecture: {arch}")
+    logger.info(f"Command: {' '.join(cmd)}")
+    
+    subprocess.run(cmd, check=True)
+
+
+@cli.command("test", help="Test a trained model")
+@click.argument("checkpoint", type=click.Path(exists=True))
+@click.option(
+    "--arch", "-a",
+    type=click.Choice(["v1"]),
+    default="v1",
+    help="Architecture type"
+)
+@click.argument("overrides", nargs=-1)
+def test(checkpoint, arch, overrides):
+    """
+    Test a trained model checkpoint.
+    
+    CHECKPOINT: Path to the model checkpoint file (.ckpt)
+    
+    Example:
+        python main.py test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
+    """
+    import subprocess
+    import sys
+    
+    cmd = [
+        sys.executable, "archs/train.py",
+        f"arch={arch}",
+        "train=false",
+        "test=true",
+        f"arch.training.load_weight_from={checkpoint}",
+    ]
+    cmd.extend(overrides)
+    
+    logger.info(f"Testing model from checkpoint: {checkpoint}")
+    logger.info(f"Command: {' '.join(cmd)}")
+    
     subprocess.run(cmd, check=True)
 
 
