@@ -9,7 +9,6 @@ This module provides command-line interface for:
 """
 
 import click
-import logging
 from pathlib import Path
 
 from hydra import compose, initialize_config_dir
