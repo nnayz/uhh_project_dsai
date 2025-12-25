@@ -395,7 +395,7 @@ def main(cfg: DictConfig) -> None:
             logger=pl_loggers,
             log_every_n_steps=10,
             enable_progress_bar=True,
-            deterministic=True,
+            deterministic="warn",
             gradient_clip_val=cfg.arch.training.gradient_clip_val,
         )
         
