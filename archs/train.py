@@ -20,12 +20,13 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import List, Optional, Type
+from typing import List, Type
 
 import hydra
 import lightning as L
 import torch
 from hydra.utils import instantiate
+import omegaconf
 from omegaconf import DictConfig, OmegaConf
 
 from preprocessing.datamodule import DCASEFewShotDataModule
@@ -233,17 +234,23 @@ def build_pl_loggers(cfg: DictConfig) -> List:
 
 def print_config(cfg: DictConfig) -> None:
     """Pretty print the configuration."""
+    # Try to resolve, but fall back to unresolved if interpolation keys are missing
+    # (e.g., hydra.job.num only exists during multirun/sweep mode)
+    try:
+        config_str = OmegaConf.to_yaml(cfg, resolve=True)
+    except omegaconf.errors.InterpolationKeyError:
+        config_str = OmegaConf.to_yaml(cfg, resolve=False)
+    
     try:
         from rich import print as rprint
         from rich.panel import Panel
         from rich.syntax import Syntax
         
-        config_str = OmegaConf.to_yaml(cfg, resolve=True)
         syntax = Syntax(config_str, "yaml", theme="monokai", line_numbers=True)
         rprint(Panel(syntax, title="Configuration", border_style="blue"))
     except ImportError:
         mf_logger.info("Configuration:")
-        print(OmegaConf.to_yaml(cfg, resolve=True))
+        print(config_str)
 
 
 def log_config_params(cfg: DictConfig):
@@ -280,7 +287,6 @@ def log_config_params(cfg: DictConfig):
         "seed": cfg.seed,
         "architecture": cfg.arch.name,
     })
-
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def main(cfg: DictConfig) -> None:
@@ -388,7 +394,7 @@ def main(cfg: DictConfig) -> None:
             logger=pl_loggers,
             log_every_n_steps=10,
             enable_progress_bar=True,
-            deterministic=True,
+            deterministic="warn",
             gradient_clip_val=cfg.arch.training.gradient_clip_val,
         )
         
