@@ -10,8 +10,8 @@ accelerator: "auto"
 devices: "auto"
 precision: "16-mixed"
 
-# Reproducibility
-deterministic: true
+# Reproducibility (use "warn" to allow ops without deterministic CUDA implementations)
+deterministic: "warn"
 
 # Logging
 log_every_n_steps: 10
