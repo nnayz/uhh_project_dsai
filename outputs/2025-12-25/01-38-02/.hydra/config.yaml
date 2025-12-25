@@ -1,0 +1,182 @@
+print_config: true
+ignore_warnings: true
+train: true
+test: true
+seed: 1234
+disable_cudnn: false
+name: protonet_baseline
+exp_name: v1_run
+path:
+  root_dir: /data/msc-proj
+  train_dir: ${path.root_dir}/Training_Set
+  eval_dir: ${path.root_dir}/Validation_Set_DSAI_2025_2026
+  test_dir: ${path.root_dir}/Evaluation_Set_DSAI_2025_2026
+  extra_train_dir: null
+  mask_dir: null
+features:
+  eps: 2.0e-16
+  fmax: 11025
+  fmin: 50
+  sr: 22050
+  n_fft: 1024
+  n_mels: 128
+  hop_mel: 256
+  feature_types: logmel
+  embedding_dim: 2048
+  drop_rate: 0.1
+  with_bias: false
+  non_linearity: leaky_relu
+  time_max_pool_dim: 4
+  layer_4: false
+  test_seglen_len_lim: 30
+  test_hoplen_fenmu: 3
+  cache_dir: ${path.root_dir}/features_cache
+  version: v1
+  use_cache: true
+  force_recompute: false
+  format: npy
+  normalize: true
+  normalize_mode: per_sample
+train_param:
+  exp_name: ${exp_name}
+  sr: ${features.sr}
+  seg_len: 0.2
+  n_shot: 5
+  k_way: 10
+  device: cuda
+  lr_rate: 0.001
+  scheduler_gamma: 0.65
+  scheduler_step_size: 10
+  num_episodes: 2000
+  adaptive_seg_len: true
+  use_validation_first_5: false
+  negative_train_contrast: true
+  load_weight_from: null
+  negative_seg_search: false
+  merging_segment: false
+  remove_long_segment: false
+  padd_tail: false
+eval_param:
+  seg_len: 0.2
+  hop_seg: 0.05
+  samples_neg: 150
+  iterations: 3
+  query_batch_size: 8
+  negative_set_batch_size: 16
+  threshold: 0.9
+  negative_estimate: freq_mask
+annotations:
+  train_files:
+  - ${path.train_dir}/**/*.csv
+  val_files:
+  - ${path.eval_dir}/**/*.csv
+  test_files:
+  - ${path.test_dir}/**/*.csv
+  positive_label: POS
+  class_name: null
+  min_duration: ${train_param.seg_len}
+  max_frames: 512
+  batch_size: 1
+runtime:
+  device: auto
+  num_workers: 4
+  prefetch_factor: 2
+  log_dir: outputs/${name}/${exp_name}
+  ckpt_dir: ${runtime.log_dir}/checkpoints
+set:
+  features: false
+  train: true
+  eval: false
+arch:
+  name: v1
+  model:
+    encoder_type: conv4
+    embedding_dim: ${features.embedding_dim}
+    drop_rate: ${features.drop_rate}
+    non_linearity: ${features.non_linearity}
+    with_bias: ${features.with_bias}
+    conv_channels:
+    - 64
+    - 64
+    - 64
+    - 64
+    layer_4: ${features.layer_4}
+    time_max_pool_dim: ${features.time_max_pool_dim}
+    distance: euclidean
+    n_mels: ${features.n_mels}
+  episodes:
+    n_way: ${train_param.k_way}
+    k_shot: ${train_param.n_shot}
+    n_query: 5
+    episodes_per_epoch: ${train_param.num_episodes}
+    val_episodes: 200
+    test_episodes: 200
+    seg_len: ${train_param.seg_len}
+    adaptive_seg_len: ${train_param.adaptive_seg_len}
+  training:
+    learning_rate: ${train_param.lr_rate}
+    weight_decay: 0.0001
+    max_epochs: 50
+    optimizer: adamw
+    scheduler: step
+    scheduler_gamma: ${train_param.scheduler_gamma}
+    scheduler_step_size: ${train_param.scheduler_step_size}
+    gradient_clip_val: null
+    negative_train_contrast: ${train_param.negative_train_contrast}
+    load_weight_from: ${train_param.load_weight_from}
+callbacks:
+  model_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    monitor: val_acc
+    mode: max
+    save_top_k: 1
+    save_last: true
+    verbose: false
+    dirpath: ${runtime.ckpt_dir}
+    filename: epoch_{epoch:03d}_val_acc_{val_acc:.4f}
+    auto_insert_metric_name: false
+  early_stopping:
+    _target_: lightning.pytorch.callbacks.EarlyStopping
+    monitor: val_acc
+    mode: max
+    patience: 10
+    min_delta: 0.0
+  model_summary:
+    _target_: lightning.pytorch.callbacks.RichModelSummary
+    max_depth: -1
+  learning_rate_monitor:
+    _target_: lightning.pytorch.callbacks.LearningRateMonitor
+    logging_interval: epoch
+logger:
+  mlflow:
+    _target_: lightning.pytorch.loggers.MLFlowLogger
+    experiment_name: ${name}
+    run_name: ${exp_name}
+    tracking_uri: ${runtime.log_dir}/mlruns
+    tags:
+      arch: ${arch.name}
+      seed: ${seed}
+    save_dir: ${runtime.log_dir}
+    log_model: true
+    prefix: ''
+trainer:
+  _target_: lightning.Trainer
+  max_epochs: ${arch.training.max_epochs}
+  accelerator: auto
+  devices: auto
+  precision: 16-mixed
+  deterministic: true
+  log_every_n_steps: 10
+  enable_progress_bar: true
+  gradient_clip_val: null
+  gradient_clip_algorithm: norm
+  check_val_every_n_epoch: 1
+  num_sanity_val_steps: 2
+  enable_model_summary: true
+log_dir:
+  hydra:
+    run:
+      dir: outputs/${name}/${now:%Y-%m-%d_%H-%M-%S}
+    sweep:
+      dir: outputs/${name}/multirun/${now:%Y-%m-%d_%H-%M-%S}
+      subdir: ${hydra.job.num}
