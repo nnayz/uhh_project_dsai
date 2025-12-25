@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import warnings
 from pathlib import Path
-from typing import List, Optional, Type
+from typing import List, Type
 
 import hydra
 import lightning as L
