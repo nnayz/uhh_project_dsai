@@ -1,0 +1,220 @@
+[INFO] Started MLflow run: v1_run (experiment: protonet_baseline)
+╭─────────────────────────────── Configuration ────────────────────────────────╮
+│     1 print_config: true                                                     │
+│     2 ignore_warnings: true                                                  │
+│     3 train: false                                                           │
+│     4 test: true                                                             │
+│     5 seed: 1234                                                             │
+│     6 disable_cudnn: false                                                   │
+│     7 name: protonet_baseline                                                │
+│     8 exp_name: v1_run                                                       │
+│     9 path:                                                                  │
+│    10   root_dir: /data/msc-proj                                             │
+│    11   train_dir: ${path.root_dir}/Training_Set                             │
+│    12   eval_dir: ${path.root_dir}/Validation_Set_DSAI_2025_2026             │
+│    13   test_dir: ${path.root_dir}/Evaluation_Set_DSAI_2025_2026             │
+│    14   extra_train_dir: null                                                │
+│    15   mask_dir: null                                                       │
+│    16 features:                                                              │
+│    17   eps: 2.0e-16                                                         │
+│    18   fmax: 11025                                                          │
+│    19   fmin: 50                                                             │
+│    20   sr: 22050                                                            │
+│    21   n_fft: 1024                                                          │
+│    22   n_mels: 128                                                          │
+│    23   hop_mel: 256                                                         │
+│    24   feature_types: logmel                                                │
+│    25   embedding_dim: 2048                                                  │
+│    26   drop_rate: 0.1                                                       │
+│    27   with_bias: false                                                     │
+│    28   non_linearity: leaky_relu                                            │
+│    29   time_max_pool_dim: 4                                                 │
+│    30   layer_4: false                                                       │
+│    31   test_seglen_len_lim: 30                                              │
+│    32   test_hoplen_fenmu: 3                                                 │
+│    33   cache_dir: ${path.root_dir}/features_cache                           │
+│    34   version: v1                                                          │
+│    35   use_cache: true                                                      │
+│    36   force_recompute: false                                               │
+│    37   format: npy                                                          │
+│    38   normalize: true                                                      │
+│    39   normalize_mode: per_sample                                           │
+│    40 train_param:                                                           │
+│    41   exp_name: ${exp_name}                                                │
+│    42   sr: ${features.sr}                                                   │
+│    43   seg_len: 0.2                                                         │
+│    44   n_shot: 5                                                            │
+│    45   k_way: 10                                                            │
+│    46   device: cuda                                                         │
+│    47   lr_rate: 0.001                                                       │
+│    48   scheduler_gamma: 0.65                                                │
+│    49   scheduler_step_size: 10                                              │
+│    50   num_episodes: 2000                                                   │
+│    51   adaptive_seg_len: true                                               │
+│    52   use_validation_first_5: false                                        │
+│    53   negative_train_contrast: true                                        │
+│    54   load_weight_from: null                                               │
+│    55   negative_seg_search: false                                           │
+│    56   merging_segment: false                                               │
+│    57   remove_long_segment: false                                           │
+│    58   padd_tail: false                                                     │
+│    59 eval_param:                                                            │
+│    60   seg_len: 0.2                                                         │
+│    61   hop_seg: 0.05                                                        │
+│    62   samples_neg: 150                                                     │
+│    63   iterations: 3                                                        │
+│    64   query_batch_size: 8                                                  │
+│    65   negative_set_batch_size: 16                                          │
+│    66   threshold: 0.9                                                       │
+│    67   negative_estimate: freq_mask                                         │
+│    68 annotations:                                                           │
+│    69   train_files:                                                         │
+│    70   - ${path.train_dir}/**/*.csv                                         │
+│    71   val_files:                                                           │
+│    72   - ${path.eval_dir}/**/*.csv                                          │
+│    73   test_files:                                                          │
+│    74   - ${path.test_dir}/**/*.csv                                          │
+│    75   positive_label: POS                                                  │
+│    76   class_name: null                                                     │
+│    77   min_duration: ${train_param.seg_len}                                 │
+│    78   max_frames: 512                                                      │
+│    79   batch_size: 1                                                        │
+│    80 runtime:                                                               │
+│    81   device: auto                                                         │
+│    82   num_workers: 4                                                       │
+│    83   prefetch_factor: 2                                                   │
+│    84   log_dir: outputs/${name}/${exp_name}                                 │
+│    85   ckpt_dir: ${runtime.log_dir}/checkpoints                             │
+│    86 set:                                                                   │
+│    87   features: false                                                      │
+│    88   train: true                                                          │
+│    89   eval: false                                                          │
+│    90 arch:                                                                  │
+│    91   name: v1                                                             │
+│    92   model:                                                               │
+│    93     encoder_type: conv4                                                │
+│    94     embedding_dim: ${features.embedding_dim}                           │
+│    95     drop_rate: ${features.drop_rate}                                   │
+│    96     non_linearity: ${features.non_linearity}                           │
+│    97     with_bias: ${features.with_bias}                                   │
+│    98     conv_channels:                                                     │
+│    99     - 64                                                               │
+│   100     - 64                                                               │
+│   101     - 64                                                               │
+│   102     - 64                                                               │
+│   103     layer_4: ${features.layer_4}                                       │
+│   104     time_max_pool_dim: ${features.time_max_pool_dim}                   │
+│   105     distance: euclidean                                                │
+│   106     n_mels: ${features.n_mels}                                         │
+│   107   episodes:                                                            │
+│   108     n_way: ${train_param.k_way}                                        │
+│   109     k_shot: ${train_param.n_shot}                                      │
+│   110     n_query: 5                                                         │
+│   111     episodes_per_epoch: ${train_param.num_episodes}                    │
+│   112     val_episodes: 200                                                  │
+│   113     test_episodes: 200                                                 │
+│   114     seg_len: ${train_param.seg_len}                                    │
+│   115     adaptive_seg_len: ${train_param.adaptive_seg_len}                  │
+│   116   training:                                                            │
+│   117     learning_rate: ${train_param.lr_rate}                              │
+│   118     weight_decay: 0.0001                                               │
+│   119     max_epochs: 50                                                     │
+│   120     optimizer: adamw                                                   │
+│   121     scheduler: step                                                    │
+│   122     scheduler_gamma: ${train_param.scheduler_gamma}                    │
+│   123     scheduler_step_size: ${train_param.scheduler_step_size}            │
+│   124     gradient_clip_val: null                                            │
+│   125     negative_train_contrast: ${train_param.negative_train_contrast}    │
+│   126     load_weight_from: outputs/protonet_baseline/v1_run/checkpoints/epo │
+│   127 callbacks:                                                             │
+│   128   model_checkpoint:                                                    │
+│   129     _target_: lightning.pytorch.callbacks.ModelCheckpoint              │
+│   130     monitor: val_acc                                                   │
+│   131     mode: max                                                          │
+│   132     save_top_k: 1                                                      │
+│   133     save_last: true                                                    │
+│   134     verbose: false                                                     │
+│   135     dirpath: ${runtime.ckpt_dir}                                       │
+│   136     filename: epoch_{epoch:03d}_val_acc_{val_acc:.4f}                  │
+│   137     auto_insert_metric_name: false                                     │
+│   138   early_stopping:                                                      │
+│   139     _target_: lightning.pytorch.callbacks.EarlyStopping                │
+│   140     monitor: val_acc                                                   │
+│   141     mode: max                                                          │
+│   142     patience: 10                                                       │
+│   143     min_delta: 0.0                                                     │
+│   144   model_summary:                                                       │
+│   145     _target_: lightning.pytorch.callbacks.RichModelSummary             │
+│   146     max_depth: -1                                                      │
+│   147   learning_rate_monitor:                                               │
+│   148     _target_: lightning.pytorch.callbacks.LearningRateMonitor          │
+│   149     logging_interval: epoch                                            │
+│   150 logger:                                                                │
+│   151   mlflow:                                                              │
+│   152     _target_: lightning.pytorch.loggers.MLFlowLogger                   │
+│   153     experiment_name: ${name}                                           │
+│   154     run_name: ${exp_name}                                              │
+│   155     tracking_uri: ${runtime.log_dir}/mlruns                            │
+│   156     tags:                                                              │
+│   157       arch: ${arch.name}                                               │
+│   158       seed: ${seed}                                                    │
+│   159     save_dir: ${runtime.log_dir}                                       │
+│   160     log_model: true                                                    │
+│   161     prefix: ''                                                         │
+│   162 trainer:                                                               │
+│   163   _target_: lightning.Trainer                                          │
+│   164   max_epochs: ${arch.training.max_epochs}                              │
+│   165   accelerator: auto                                                    │
+│   166   devices: auto                                                        │
+│   167   precision: 16-mixed                                                  │
+│   168   deterministic: warn                                                  │
+│   169   log_every_n_steps: 10                                                │
+│   170   enable_progress_bar: true                                            │
+│   171   gradient_clip_val: null                                              │
+│   172   gradient_clip_algorithm: norm                                        │
+│   173   check_val_every_n_epoch: 1                                           │
+│   174   num_sanity_val_steps: 2                                              │
+│   175   enable_model_summary: true                                           │
+│   176 log_dir:                                                               │
+│   177   hydra:                                                               │
+│   178     run:                                                               │
+│   179       dir: outputs/${name}/${now:%Y-%m-%d_%H-%M-%S}                    │
+│   180     sweep:                                                             │
+│   181       dir: outputs/${name}/multirun/${now:%Y-%m-%d_%H-%M-%S}           │
+│   182       subdir: ${hydra.job.num}                                         │
+│   183                                                                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+Seed set to 1234
+[TAG] experiment: protonet_baseline
+[TAG] run: v1_run
+[TAG] architecture: v1
+[TAG] accelerator: cuda
+[PARAM] training/learning_rate: 0.001
+[PARAM] training/weight_decay: 0.0001
+[PARAM] training/max_epochs: 50
+[PARAM] training/scheduler: step
+[PARAM] training/scheduler_gamma: 0.65
+[PARAM] training/scheduler_step_size: 10
+[PARAM] episodes/n_way: 10
+[PARAM] episodes/k_shot: 5
+[PARAM] episodes/n_query: 5
+[PARAM] episodes/per_epoch: 2000
+[PARAM] features/sr: 22050
+[PARAM] features/n_mels: 128
+[PARAM] features/n_fft: 1024
+[PARAM] features/hop_mel: 256
+[PARAM] features/type: logmel
+[PARAM] seed: 1234
+[PARAM] architecture: v1
+[INFO] Training Configuration
+[INFO] Experiment: protonet_baseline / v1_run
+[INFO] Architecture: v1
+[INFO] Accelerator: cuda
+[INFO] Feature caching: True
+[INFO] Epochs: 50
+[INFO] Learning rate: 0.001
+[INFO] Episodes per epoch: 2000
+[INFO] N-way: 10, K-shot: 5
+[INFO] Features: sr=22050, n_mels=128, type=logmel
+[INFO] Training disabled (cfg.train=False), exiting
+[INFO] Ended MLflow run
