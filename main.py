@@ -227,7 +227,7 @@ def list_all_audio_files():
 # Training Command (Phase 2) - Lightning only
 
 @cli.command("train", help="Train model with PyTorch Lightning (Phase 2)")
-@click.argument("arch", type=click.Choice(["v1"]), default="v1")
+@click.argument("arch", type=click.Choice(["v1", "v2"]), default="v1")
 @click.option(
     "--no-cache",
     is_flag=True,
@@ -245,7 +245,7 @@ def train(arch, no_cache, exp_name, overrides):
     """
     Train the model with PyTorch Lightning.
     
-    ARCH: Architecture to use (currently only 'v1' supported)
+    ARCH: Architecture to use ('v1' or 'v2')
     
     OVERRIDES: Optional Hydra config overrides
     
