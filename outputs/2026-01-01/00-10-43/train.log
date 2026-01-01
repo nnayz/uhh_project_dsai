@@ -1,0 +1,6 @@
+[2026-01-01 00:10:44,202][preprocessing.datamodule][INFO] - Train dataset: 2000 episodes, 174 classes
+[2026-01-01 00:10:44,204][preprocessing.datamodule][INFO] - Val dataset: 200 episodes, 11 classes
+[2026-01-01 00:10:44,702][preprocessing.datamodule][INFO] - Train dataset: 2000 episodes, 174 classes
+[2026-01-01 00:10:44,707][preprocessing.datamodule][INFO] - Val dataset: 200 episodes, 11 classes
+[2026-01-01 03:54:00,699][preprocessing.datamodule][INFO] - Test dataset: 200 episodes, 29 classes
+[2026-01-01 03:54:00,942][preprocessing.datamodule][INFO] - Test dataset: 200 episodes, 29 classes

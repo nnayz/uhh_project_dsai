@@ -1,0 +1,4 @@
+- arch=v1
+- train=false
+- test=true
+- arch.training.load_weight_from=outputs/protonet_baseline/v1_run/checkpoints/epoch_003_val_acc_0.4380.ckpt

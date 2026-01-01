@@ -66,8 +66,11 @@ def get_lightning_module(arch_name: str) -> Type[L.LightningModule]:
     if arch_name == "v1":
         from archs.v1.lightning_module import ProtoNetLightningModule
         return ProtoNetLightningModule
+    elif arch_name == "v2":
+        from archs.v2.lightning_module import ProtoNetV2LightningModule
+        return ProtoNetV2LightningModule
     else:
-        raise ValueError(f"Unknown architecture: {arch_name}. Supported: v1")
+        raise ValueError(f"Unknown architecture: {arch_name}. Supported: v1, v2")
 
 
 def build_model(cfg: DictConfig) -> L.LightningModule:
@@ -90,6 +93,28 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
             scheduler_gamma=cfg.arch.training.scheduler_gamma,
             scheduler_step_size=cfg.arch.training.scheduler_step_size,
             scheduler_type=cfg.arch.training.scheduler,
+            num_classes=cfg.arch.episodes.n_way,
+        )
+    elif arch_name == "v2":
+        model = module_class(
+            emb_dim=cfg.arch.model.embedding_dim,
+            distance=cfg.arch.model.distance,
+            lr=cfg.arch.training.learning_rate,
+            weight_decay=cfg.arch.training.weight_decay,
+            scheduler_gamma=cfg.arch.training.scheduler_gamma,
+            scheduler_step_size=cfg.arch.training.scheduler_step_size,
+            scheduler_type=cfg.arch.training.scheduler,
+            n_mels=cfg.features.n_mels,
+            in_channels=cfg.arch.model.in_channels,
+            channels=list(cfg.arch.model.channels),
+            dropout=cfg.arch.model.dropout,
+            num_classes=cfg.arch.episodes.n_way,
+            # Augmentation parameters
+            use_augmentation=cfg.arch.augmentation.use_augmentation,
+            use_spec_augment=cfg.arch.augmentation.use_spec_augment,
+            use_noise=cfg.arch.augmentation.use_noise,
+            time_mask_pct=cfg.arch.augmentation.time_mask_pct,
+            freq_mask_pct=cfg.arch.augmentation.freq_mask_pct,
         )
     else:
         raise ValueError(f"Unknown architecture: {arch_name}")
@@ -97,13 +122,26 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
     mf_logger.info(f"Created model: {module_class.__name__}")
     
     # Log model architecture params
-    mf_logger.log_params({
-        "model/embedding_dim": cfg.arch.model.embedding_dim,
-        "model/conv_channels": str(list(cfg.arch.model.conv_channels)),
-        "model/activation": cfg.arch.model.non_linearity,
-        "model/dropout": cfg.arch.model.drop_rate,
-        "model/distance": cfg.arch.model.distance,
-    })
+    if arch_name == "v1":
+        mf_logger.log_params({
+            "model/embedding_dim": cfg.arch.model.embedding_dim,
+            "model/conv_channels": str(list(cfg.arch.model.conv_channels)),
+            "model/activation": cfg.arch.model.non_linearity,
+            "model/dropout": cfg.arch.model.drop_rate,
+            "model/distance": cfg.arch.model.distance,
+        })
+    elif arch_name == "v2":
+        mf_logger.log_params({
+            "model/embedding_dim": cfg.arch.model.embedding_dim,
+            "model/channels": str(list(cfg.arch.model.channels)),
+            "model/dropout": cfg.arch.model.dropout,
+            "model/distance": cfg.arch.model.distance,
+            "model/encoder": cfg.arch.model.encoder_type,
+            "augmentation/spec_augment": cfg.arch.augmentation.use_spec_augment,
+            "augmentation/noise": cfg.arch.augmentation.use_noise,
+            "augmentation/time_mask": cfg.arch.augmentation.time_mask_pct,
+            "augmentation/freq_mask": cfg.arch.augmentation.freq_mask_pct,
+        })
     
     return model
 
@@ -209,7 +247,7 @@ def build_pl_loggers(cfg: DictConfig) -> List:
             run_name=cfg.exp_name,
             tracking_uri=tracking_uri,
             save_dir=str(log_dir),
-            log_model=True,
+            log_model=False,  # Disable auto-logging checkpoints to avoid permission issues
         )
         loggers.append(pl_mlflow_logger)
         mf_logger.info(f"Created MLflow logger: tracking_uri={tracking_uri}")
@@ -343,7 +381,10 @@ def main(cfg: DictConfig) -> None:
         
         L.seed_everything(cfg.seed, workers=True)
         
-        if not cfg.train:
+        # Allow test-only mode if checkpoint is provided
+        test_only_mode = not cfg.train and cfg.test and cfg.arch.training.load_weight_from
+        
+        if not cfg.train and not test_only_mode:
             mf_logger.info("Training disabled (cfg.train=False), exiting")
             return
         
@@ -398,10 +439,13 @@ def main(cfg: DictConfig) -> None:
             gradient_clip_val=cfg.arch.training.gradient_clip_val,
         )
         
-        mf_logger.info("Starting training...")
-        trainer.fit(model, datamodule=datamodule)
-        
-        mf_logger.info("Training Complete!")
+        # Skip training if in test-only mode
+        if not test_only_mode:
+            mf_logger.info("Starting training...")
+            trainer.fit(model, datamodule=datamodule)
+            mf_logger.info("Training Complete!")
+        else:
+            mf_logger.info("Skipping training (test-only mode)")
         
         # Find and log best checkpoint
         best_ckpt = None
@@ -432,7 +476,10 @@ def main(cfg: DictConfig) -> None:
             mf_logger.info("Running test evaluation...")
             datamodule.setup("test")
             if datamodule.test_dataset is not None:
-                test_results = trainer.test(model, datamodule=datamodule, ckpt_path="best")
+                # Use loaded checkpoint if in test-only mode, otherwise use best from training
+                ckpt_path = cfg.arch.training.load_weight_from if test_only_mode else "best"
+                mf_logger.info(f"Testing with checkpoint: {ckpt_path}")
+                test_results = trainer.test(model, datamodule=datamodule, ckpt_path=ckpt_path)
                 if test_results:
                     for result in test_results:
                         mf_logger.log_metrics({f"test/{k}": v for k, v in result.items()})
