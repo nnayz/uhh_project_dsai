@@ -40,7 +40,7 @@ def cli():
        g5 extract-features
     
     2. Train model (Phase 2 - uses cached features):
-       g5 train v1
+       g5 train v1 --exp-name my_experiment
     """
     pass
 
@@ -237,8 +237,8 @@ def list_all_audio_files():
 @click.option(
     "--exp-name", "-e",
     type=str,
-    default=None,
-    help="Experiment name for this run"
+    required=True,
+    help="Experiment name for this run (required)"
 )
 @click.argument("overrides", nargs=-1)
 def train(arch, no_cache, exp_name, overrides):
@@ -247,17 +247,17 @@ def train(arch, no_cache, exp_name, overrides):
     
     ARCH: Architecture to use ('v1' or 'v2')
     
+    --exp-name: Experiment name for this run (required)
+    
     OVERRIDES: Optional Hydra config overrides
     
     Examples:
     
-        g5 train v1
-        
         g5 train v1 --exp-name my_experiment
         
-        g5 train v1 arch.training.max_epochs=100
+        g5 train v1 --exp-name my_experiment arch.training.max_epochs=100
         
-        g5 train v1 --no-cache
+        g5 train v1 --exp-name my_experiment --no-cache
     """
     import subprocess
     import sys
@@ -267,8 +267,7 @@ def train(arch, no_cache, exp_name, overrides):
     if no_cache:
         cmd.append("features.use_cache=false")
     
-    if exp_name:
-        cmd.append(f"exp_name={exp_name}")
+    cmd.append(f"exp_name={exp_name}")
     
     cmd.extend(overrides)
     
@@ -295,7 +294,7 @@ def test(checkpoint, arch, overrides):
     CHECKPOINT: Path to the model checkpoint file (.ckpt)
     
     Example:
-        g5 test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
+        g5 test outputs/mlflow_experiments/my_experiment/checkpoints/last.ckpt
     """
     import subprocess
     import sys

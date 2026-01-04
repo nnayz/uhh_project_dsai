@@ -17,10 +17,10 @@ source .venv/bin/activate  # On Linux/Mac
 g5 extract-features
 
 # 2. Train the model
-g5 train v1
+g5 train v1 --exp-name my_experiment
 
 # 3. Test the model
-g5 test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
+g5 test outputs/mlflow_experiments/my_experiment/checkpoints/last.ckpt
 ```
 
 ## Training Pipeline
@@ -48,17 +48,14 @@ Phase 2 (online, repeated):
 ### Training Examples
 
 ```bash
-# Basic training
-g5 train v1
-
-# Custom experiment name
+# Basic training (exp-name is required)
 g5 train v1 --exp-name my_experiment
 
 # Override hyperparameters
-g5 train v1 arch.training.max_epochs=100 arch.training.learning_rate=0.0005
+g5 train v1 --exp-name my_experiment arch.training.max_epochs=100 arch.training.learning_rate=0.0005
 
 # Change episode configuration
-g5 train v1 train_param.k_way=5 train_param.n_shot=3
+g5 train v1 --exp-name my_experiment train_param.k_way=5 train_param.n_shot=3
 ```
 
 See [docs/CLI_USAGE.md](docs/CLI_USAGE.md) for complete documentation.
@@ -106,7 +103,7 @@ Configuration uses Hydra. Key parameters:
 
 Override via CLI:
 ```bash
-g5 train v1 arch.training.learning_rate=0.0005
+g5 train v1 --exp-name my_experiment arch.training.learning_rate=0.0005
 ```
 
 Or edit `conf/config.yaml` directly.
@@ -139,7 +136,7 @@ Training logs are tracked with MLflow:
 
 ```bash
 # View training logs
-mlflow ui --backend-store-uri outputs/protonet_baseline/v1_run/mlruns
+mlflow ui --backend-store-uri outputs/mlflow_experiments/my_experiment/mlruns
 ```
 
 Open http://localhost:5000 in your browser.

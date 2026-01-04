@@ -94,7 +94,7 @@ source .venv/bin/activate
 python archs/train.py arch=v2
 
 # Or using the CLI wrapper
-g5 train v2
+g5 train v2 --exp-name my_experiment
 ```
 
 ### Testing a Trained Model
@@ -102,7 +102,7 @@ g5 train v2
 ```bash
 # Test using a checkpoint
 python archs/train.py arch=v2 train=false test=true \
-    arch.training.load_weight_from=outputs/protonet_baseline/v2_run/checkpoints/epoch_050.ckpt
+    arch.training.load_weight_from=outputs/mlflow_experiments/v2_run/checkpoints/epoch_050.ckpt
 ```
 
 ### Custom Configuration Examples
@@ -265,7 +265,7 @@ mlflow ui --port 5000
 ### Checkpoints
 Saved automatically to:
 ```
-outputs/protonet_baseline/v2_run/checkpoints/
+outputs/mlflow_experiments/v2_run/checkpoints/
 └── epoch_XXX_val_acc_X.XXXX.ckpt
 ```
 
@@ -332,7 +332,7 @@ Look at:
 2. **Evaluate on test set**
    ```bash
    python archs/train.py arch=v2 train=false test=true \
-       arch.training.load_weight_from=outputs/protonet_baseline/v2_initial_run/checkpoints/best_checkpoint.ckpt
+       arch.training.load_weight_from=outputs/mlflow_experiments/v2_initial_run/checkpoints/best_checkpoint.ckpt
    ```
 
 3. **Compare with V1** in MLflow UI

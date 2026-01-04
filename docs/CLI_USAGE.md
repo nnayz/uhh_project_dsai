@@ -22,11 +22,11 @@ source .venv/bin/activate  # On Linux/Mac
 # 1. Extract features (run once)
 g5 extract-features
 
-# 2. Train the model
-g5 train v1
+# 2. Train the model (exp-name is required)
+g5 train v1 --exp-name my_experiment
 
 # 3. Test the model
-g5 test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
+g5 test outputs/mlflow_experiments/my_experiment/checkpoints/last.ckpt
 ```
 
 ## Commands Overview
@@ -46,10 +46,10 @@ g5 test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
 ### Basic Training
 
 ```bash
-g5 train v1
+g5 train v1 --exp-name my_experiment
 ```
 
-This runs training with default configuration from `conf/config.yaml`.
+This runs training with default configuration from `conf/config.yaml`. The `--exp-name` flag is required and specifies the experiment name for this run.
 
 ### Training Options
 
@@ -69,32 +69,29 @@ g5 train [ARCH] [OPTIONS] [OVERRIDES]
 | Option | Description |
 |--------|-------------|
 | `--no-cache` | Disable feature caching (extract on-the-fly) |
-| `--exp-name`, `-e` | Custom experiment name for this run |
+| `--exp-name`, `-e` | Experiment name for this run (required) |
 
 ### Examples
 
 ```bash
-# Basic training
-g5 train v1
-
-# Custom experiment name
+# Basic training (exp-name is required)
 g5 train v1 --exp-name my_experiment
 
 # Modify hyperparameters
-g5 train v1 arch.training.max_epochs=100
-g5 train v1 arch.training.learning_rate=0.0005
+g5 train v1 --exp-name my_experiment arch.training.max_epochs=100
+g5 train v1 --exp-name my_experiment arch.training.learning_rate=0.0005
 
 # Multiple overrides
-g5 train v1 \
+g5 train v1 --exp-name my_experiment \
     arch.training.max_epochs=100 \
     arch.training.learning_rate=0.0005 \
     train_param.k_way=5
 
 # Train without feature cache (slower, for debugging)
-g5 train v1 --no-cache
+g5 train v1 --exp-name my_experiment --no-cache
 
 # Change episode configuration
-g5 train v1 \
+g5 train v1 --exp-name my_experiment \
     train_param.k_way=5 \
     train_param.n_shot=3 \
     train_param.num_episodes=1000
@@ -111,7 +108,7 @@ g5 train v1 \
 | `train_param.n_shot` | K-shot (support samples per class) | 5 |
 | `train_param.num_episodes` | Episodes per epoch | 2000 |
 | `features.use_cache` | Use cached features | true |
-| `exp_name` | Experiment run name | v1_run |
+| `exp_name` | Experiment run name (required via --exp-name) | v1_run |
 | `seed` | Random seed | 1234 |
 
 ## Testing
@@ -139,13 +136,13 @@ g5 test CHECKPOINT [OPTIONS] [OVERRIDES]
 
 ```bash
 # Test the last checkpoint
-g5 test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
+g5 test outputs/mlflow_experiments/my_experiment/checkpoints/last.ckpt
 
-# Test the best checkpoint
-g5 test outputs/protonet_baseline/v1_run/checkpoints/v1_050_0.8500.ckpt
+# Test a specific checkpoint
+g5 test outputs/mlflow_experiments/my_experiment/checkpoints/v1_050_0.8500.ckpt
 
 # Test with different episode config
-g5 test checkpoints/model.ckpt train_param.k_way=5
+g5 test outputs/mlflow_experiments/my_experiment/checkpoints/last.ckpt train_param.k_way=5
 ```
 
 ## Feature Extraction
@@ -312,8 +309,8 @@ After training, outputs are organized as:
 
 ```
 outputs/
-  {experiment_name}/
-    {run_name}/
+  mlflow_experiments/
+    {exp_name}/
       checkpoints/
         last.ckpt
         v1_001_0.7500.ckpt
@@ -327,7 +324,7 @@ outputs/
 Training logs are tracked with MLflow. To view the UI:
 
 ```bash
-mlflow ui --backend-store-uri outputs/protonet_baseline/v1_run/mlruns
+mlflow ui --backend-store-uri outputs/mlflow_experiments/my_experiment/mlruns
 ```
 
 Then open http://localhost:5000 in your browser.
@@ -343,10 +340,10 @@ Then open http://localhost:5000 in your browser.
 
 ```bash
 # Use specific GPU
-CUDA_VISIBLE_DEVICES=0 g5 train v1
+CUDA_VISIBLE_DEVICES=0 g5 train v1 --exp-name my_experiment
 
 # Show full error traces
-HYDRA_FULL_ERROR=1 g5 train v1
+HYDRA_FULL_ERROR=1 g5 train v1 --exp-name my_experiment
 ```
 
 ## Troubleshooting
@@ -362,7 +359,7 @@ g5 extract-features
 **Out of memory:**
 ```bash
 # Reduce batch size or episodes
-g5 train v1 \
+g5 train v1 --exp-name my_experiment \
     annotations.batch_size=1 \
     train_param.num_episodes=500
 ```
@@ -379,7 +376,7 @@ g5 extract-features --force
 uv add mlflow
 
 # Or train without MLflow (falls back to console logging)
-g5 train v1
+g5 train v1 --exp-name my_experiment
 ```
 
 ## Complete Workflow Example
@@ -399,9 +396,9 @@ g5 verify-cache
 g5 train v1 --exp-name experiment_1
 
 # 5. View training logs in MLflow
-mlflow ui --backend-store-uri outputs/protonet_baseline/experiment_1/mlruns
+mlflow ui --backend-store-uri outputs/mlflow_experiments/experiment_1/mlruns
 
 # 6. Test the best model
-g5 test outputs/protonet_baseline/experiment_1/checkpoints/last.ckpt
+g5 test outputs/mlflow_experiments/experiment_1/checkpoints/last.ckpt
 ```
 

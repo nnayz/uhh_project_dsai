@@ -84,12 +84,12 @@ Epoch 14:
 
 ### Training (unchanged)
 ```bash
-g5 train v1
+g5 train v1 --exp-name my_experiment
 ```
 
 ### View Metrics in MLflow
 ```bash
-mlflow ui --backend-store-uri outputs/protonet_baseline/v1_run/mlruns
+mlflow ui --backend-store-uri outputs/mlflow_experiments/my_experiment/mlruns
 ```
 
 Then open http://localhost:5000 and you'll see all the new metrics!

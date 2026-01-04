@@ -672,15 +672,15 @@ g5 verify-cache
 ### Training (Phase 2)
 
 ```bash
-# Train with cached features (default)
-g5 train v1
+# Train with cached features (exp-name is required)
+g5 train v1 --exp-name my_experiment
 
 # Train with custom parameters
-g5 train v1 arch.training.max_epochs=100
-g5 train v1 arch.training.learning_rate=0.0005
+g5 train v1 --exp-name my_experiment arch.training.max_epochs=100
+g5 train v1 --exp-name my_experiment arch.training.learning_rate=0.0005
 
 # Train without cache (on-the-fly extraction)
-g5 train v1 --no-cache
+g5 train v1 --exp-name my_experiment --no-cache
 ```
 
 <<<<<<< HEAD
