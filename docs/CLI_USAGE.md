@@ -2,17 +2,31 @@
 
 This document provides a complete reference for the DCASE Few-Shot Bioacoustic command-line interface.
 
+## Setup
+
+Before using the CLI, ensure you have installed dependencies and activated the virtual environment:
+
+```bash
+# Install dependencies using uv
+uv sync
+
+# Activate virtual environment
+source .venv/bin/activate  # On Linux/Mac
+# or
+.venv\Scripts\activate  # On Windows
+```
+
 ## Quick Start
 
 ```bash
 # 1. Extract features (run once)
-python main.py extract-features
+g5 extract-features
 
-# 2. Train the model
-python main.py train v1
+# 2. Train the model (exp-name is required)
+g5 train v1 --exp-name my_experiment
 
 # 3. Test the model
-python main.py test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
+g5 test outputs/mlflow_experiments/my_experiment/checkpoints/last.ckpt
 ```
 
 ## Commands Overview
@@ -32,15 +46,15 @@ python main.py test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
 ### Basic Training
 
 ```bash
-python main.py train v1
+g5 train v1 --exp-name my_experiment
 ```
 
-This runs training with default configuration from `conf/config.yaml`.
+This runs training with default configuration from `conf/config.yaml`. The `--exp-name` flag is required and specifies the experiment name for this run.
 
 ### Training Options
 
 ```bash
-python main.py train [ARCH] [OPTIONS] [OVERRIDES]
+g5 train [ARCH] [OPTIONS] [OVERRIDES]
 ```
 
 **Arguments:**
@@ -55,32 +69,29 @@ python main.py train [ARCH] [OPTIONS] [OVERRIDES]
 | Option | Description |
 |--------|-------------|
 | `--no-cache` | Disable feature caching (extract on-the-fly) |
-| `--exp-name`, `-e` | Custom experiment name for this run |
+| `--exp-name`, `-e` | Experiment name for this run (required) |
 
 ### Examples
 
 ```bash
-# Basic training
-python main.py train v1
-
-# Custom experiment name
-python main.py train v1 --exp-name my_experiment
+# Basic training (exp-name is required)
+g5 train v1 --exp-name my_experiment
 
 # Modify hyperparameters
-python main.py train v1 arch.training.max_epochs=100
-python main.py train v1 arch.training.learning_rate=0.0005
+g5 train v1 --exp-name my_experiment arch.training.max_epochs=100
+g5 train v1 --exp-name my_experiment arch.training.learning_rate=0.0005
 
 # Multiple overrides
-python main.py train v1 \
+g5 train v1 --exp-name my_experiment \
     arch.training.max_epochs=100 \
     arch.training.learning_rate=0.0005 \
     train_param.k_way=5
 
 # Train without feature cache (slower, for debugging)
-python main.py train v1 --no-cache
+g5 train v1 --exp-name my_experiment --no-cache
 
 # Change episode configuration
-python main.py train v1 \
+g5 train v1 --exp-name my_experiment \
     train_param.k_way=5 \
     train_param.n_shot=3 \
     train_param.num_episodes=1000
@@ -97,7 +108,7 @@ python main.py train v1 \
 | `train_param.n_shot` | K-shot (support samples per class) | 5 |
 | `train_param.num_episodes` | Episodes per epoch | 2000 |
 | `features.use_cache` | Use cached features | true |
-| `exp_name` | Experiment run name | v1_run |
+| `exp_name` | Experiment run name (required via --exp-name) | v1_run |
 | `seed` | Random seed | 1234 |
 
 ## Testing
@@ -105,7 +116,7 @@ python main.py train v1 \
 ### Test a Checkpoint
 
 ```bash
-python main.py test CHECKPOINT [OPTIONS] [OVERRIDES]
+g5 test CHECKPOINT [OPTIONS] [OVERRIDES]
 ```
 
 **Arguments:**
@@ -125,13 +136,13 @@ python main.py test CHECKPOINT [OPTIONS] [OVERRIDES]
 
 ```bash
 # Test the last checkpoint
-python main.py test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
+g5 test outputs/mlflow_experiments/my_experiment/checkpoints/last.ckpt
 
-# Test the best checkpoint
-python main.py test outputs/protonet_baseline/v1_run/checkpoints/v1_050_0.8500.ckpt
+# Test a specific checkpoint
+g5 test outputs/mlflow_experiments/my_experiment/checkpoints/v1_050_0.8500.ckpt
 
 # Test with different episode config
-python main.py test checkpoints/model.ckpt train_param.k_way=5
+g5 test outputs/mlflow_experiments/my_experiment/checkpoints/last.ckpt train_param.k_way=5
 ```
 
 ## Feature Extraction
@@ -139,19 +150,20 @@ python main.py test checkpoints/model.ckpt train_param.k_way=5
 ### Extract All Features
 
 ```bash
-python main.py extract-features
+g5 extract-features --exp-name my_experiment
 ```
 
-This extracts features for train, validation, and test splits.
+This extracts features for train, validation, and test splits. The `--exp-name` flag is required and organizes caches by experiment name.
 
 ### Options
 
 ```bash
-python main.py extract-features [OPTIONS]
+g5 extract-features --exp-name EXPERIMENT [OPTIONS]
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
+| `--exp-name`, `-e` | Experiment name for this cache (required) | - |
 | `--split`, `-s` | Split to extract (train/val/test/all) | all |
 | `--force`, `-f` | Force re-extraction even if cache exists | false |
 
@@ -159,28 +171,28 @@ python main.py extract-features [OPTIONS]
 
 ```bash
 # Extract all splits
-python main.py extract-features
+g5 extract-features --exp-name my_experiment
 
 # Extract only training features
-python main.py extract-features --split train
+g5 extract-features --exp-name my_experiment --split train
 
 # Force re-extraction
-python main.py extract-features --force
+g5 extract-features --exp-name my_experiment --force
 
 # Extract specific split with force
-python main.py extract-features --split val --force
+g5 extract-features --exp-name my_experiment --split val --force
 ```
 
 ### Feature Cache Location
 
 Features are cached in:
 ```
-{path.root_dir}/features_cache/{version}/{config_hash}/{split}/
+{path.root_dir}/features_cache/{exp_name}/{split}/
 ```
 
 Example:
 ```
-/data/msc-proj/features_cache/v1/abc123def456/train/
+/data/msc-proj/features_cache/my_experiment/train/
   manifest.json
   BV/
     BV_file1_0.500_1.200.npy
@@ -188,12 +200,14 @@ Example:
     PB_file1_1.000_2.500.npy
 ```
 
+The cache is organized by experiment name, allowing different experiments to have separate feature caches. Each experiment maintains its own cache directory.
+
 ## Cache Management
 
 ### View Cache Information
 
 ```bash
-python main.py cache-info
+g5 cache-info --exp-name my_experiment
 ```
 
 Shows:
@@ -206,27 +220,28 @@ Shows:
 ### Options
 
 ```bash
-python main.py cache-info [OPTIONS]
+g5 cache-info --exp-name EXPERIMENT [OPTIONS]
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
+| `--exp-name`, `-e` | Experiment name for the cache (required) | - |
 | `--split`, `-s` | Split to show info for | all |
 
 ### Examples
 
 ```bash
 # Show all cache info
-python main.py cache-info
+g5 cache-info --exp-name my_experiment
 
 # Show only training cache
-python main.py cache-info --split train
+g5 cache-info --exp-name my_experiment --split train
 ```
 
 ### Verify Cache Integrity
 
 ```bash
-python main.py verify-cache
+g5 verify-cache --exp-name my_experiment
 ```
 
 Checks that all cached feature files exist and are valid.
@@ -235,10 +250,10 @@ Checks that all cached feature files exist and are valid.
 
 ```bash
 # Verify all caches
-python main.py verify-cache
+g5 verify-cache --exp-name my_experiment
 
 # Verify specific split
-python main.py verify-cache --split train
+g5 verify-cache --exp-name my_experiment --split train
 ```
 
 ## Data Listing
@@ -246,7 +261,7 @@ python main.py verify-cache --split train
 ### List Data Directories
 
 ```bash
-python main.py list-data-dir --type TYPE
+g5 list-data-dir --type TYPE
 ```
 
 | Type | Description |
@@ -259,14 +274,14 @@ python main.py list-data-dir --type TYPE
 ### Examples
 
 ```bash
-python main.py list-data-dir --type training
-python main.py list-data-dir --type all
+g5 list-data-dir --type training
+g5 list-data-dir --type all
 ```
 
 ### List Audio Files
 
 ```bash
-python main.py list-all-audio-files
+g5 list-all-audio-files
 ```
 
 Lists all audio files in the configured data directories.
@@ -298,8 +313,8 @@ After training, outputs are organized as:
 
 ```
 outputs/
-  {experiment_name}/
-    {run_name}/
+  mlflow_experiments/
+    {exp_name}/
       checkpoints/
         last.ckpt
         v1_001_0.7500.ckpt
@@ -313,7 +328,7 @@ outputs/
 Training logs are tracked with MLflow. To view the UI:
 
 ```bash
-mlflow ui --backend-store-uri outputs/protonet_baseline/v1_run/mlruns
+mlflow ui --backend-store-uri outputs/mlflow_experiments/my_experiment/mlruns
 ```
 
 Then open http://localhost:5000 in your browser.
@@ -329,10 +344,10 @@ Then open http://localhost:5000 in your browser.
 
 ```bash
 # Use specific GPU
-CUDA_VISIBLE_DEVICES=0 python main.py train v1
+CUDA_VISIBLE_DEVICES=0 g5 train v1 --exp-name my_experiment
 
 # Show full error traces
-HYDRA_FULL_ERROR=1 python main.py train v1
+HYDRA_FULL_ERROR=1 g5 train v1 --exp-name my_experiment
 ```
 
 ## Troubleshooting
@@ -342,13 +357,13 @@ HYDRA_FULL_ERROR=1 python main.py train v1
 **No features cached:**
 ```bash
 # Run feature extraction first
-python main.py extract-features
+g5 extract-features --exp-name my_experiment
 ```
 
 **Out of memory:**
 ```bash
 # Reduce batch size or episodes
-python main.py train v1 \
+g5 train v1 --exp-name my_experiment \
     annotations.batch_size=1 \
     train_param.num_episodes=500
 ```
@@ -356,38 +371,38 @@ python main.py train v1 \
 **Config hash mismatch:**
 ```bash
 # Force re-extraction with new config
-python main.py extract-features --force
+g5 extract-features --force
 ```
 
 **MLflow not available:**
 ```bash
-# Install MLflow
-pip install mlflow
+# Install MLflow using uv
+uv add mlflow
 
 # Or train without MLflow (falls back to console logging)
-python main.py train v1
+g5 train v1 --exp-name my_experiment
 ```
 
 ## Complete Workflow Example
 
 ```bash
 # 1. Check data directories
-python main.py list-data-dir --type all
+g5 list-data-dir --type all
 
 # 2. Extract features (takes time, run once)
-python main.py extract-features
+g5 extract-features --exp-name experiment_1
 
 # 3. Verify features were extracted correctly
-python main.py cache-info
-python main.py verify-cache
+g5 cache-info --exp-name experiment_1
+g5 verify-cache --exp-name experiment_1
 
 # 4. Train the model
-python main.py train v1 --exp-name experiment_1
+g5 train v1 --exp-name experiment_1
 
 # 5. View training logs in MLflow
-mlflow ui --backend-store-uri outputs/protonet_baseline/experiment_1/mlruns
+mlflow ui --backend-store-uri outputs/mlflow_experiments/experiment_1/mlruns
 
 # 6. Test the best model
-python main.py test outputs/protonet_baseline/experiment_1/checkpoints/last.ckpt
+g5 test outputs/mlflow_experiments/experiment_1/checkpoints/last.ckpt
 ```
 

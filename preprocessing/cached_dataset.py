@@ -282,7 +282,7 @@ def create_cached_dataset(
     if not cache_dir.exists():
         raise RuntimeError(
             f"Cache directory not found: {cache_dir}. "
-            f"Run feature extraction first with: python main.py extract-features"
+            f"Run feature extraction first with: g5 extract-features"
         )
     
     return CachedFeatureDataset(

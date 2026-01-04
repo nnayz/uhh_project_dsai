@@ -1,0 +1,14 @@
+artifact_uri: /export/home/4huda/group5/outputs/mlflow_experiments/experiment_2/mlruns/492569062816527937/89683fc1fd674d0ba6ac6f9f491e4ff4/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '492569062816527937'
+lifecycle_stage: active
+run_id: 89683fc1fd674d0ba6ac6f9f491e4ff4
+run_name: experiment_2
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1767535155495
+status: 1
+tags: []
+user_id: 4huda
