@@ -175,12 +175,12 @@ python main.py extract-features --split val --force
 
 Features are cached in:
 ```
-{path.root_dir}/features_cache/{version}/{config_hash}/{split}/
+{path.root_dir}/features_cache/{config_hash}/{split}/
 ```
 
 Example:
 ```
-/data/msc-proj/features_cache/v1/abc123def456/train/
+/data/msc-proj/features_cache/abc123def456/train/
   manifest.json
   BV/
     BV_file1_0.500_1.200.npy

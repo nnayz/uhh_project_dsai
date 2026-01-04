@@ -237,7 +237,7 @@ Before saving or modeling, a channel dimension is added:
 ### Cache Directory Structure
 
 ```
-{cache_dir}/{version}/{config_hash}/{split}/
+{cache_dir}/{config_hash}/{split}/
   manifest.json
   {class_name}/
     {wav_stem}_{start}_{end}.npy
@@ -256,7 +256,7 @@ This matches CNN input expectations:
 ### Cache Directory Structure
 
 ```
-{cache_dir}/{version}/{config_hash}/{split}/
+{cache_dir}/{config_hash}/{split}/
   manifest.json
   {class_name}/
     {wav_stem}_{start}_{end}.npy
@@ -265,25 +265,24 @@ This matches CNN input expectations:
 <<<<<<< HEAD
 ### 7.2 Cache Directory Structure
 
-Features are saved in a versioned, hash-organized structure:
+Features are saved in a hash-organized structure:
 
 ```
 {cache_dir}/
-  {version}/
-    {config_hash}/
-      train/
-        manifest.json           # Metadata about cached features
-        BV/
-          BV_file1_0.500_1.200.npy
-          BV_file1_2.100_3.500.npy
-        PB/
-          PB_file1_1.000_2.000.npy
-      val/
-        manifest.json
-        ...
-      test/
-        manifest.json
-        ...
+  {config_hash}/
+    train/
+      manifest.json           # Metadata about cached features
+      BV/
+        BV_file1_0.500_1.200.npy
+        BV_file1_2.100_3.500.npy
+      PB/
+        PB_file1_1.000_2.000.npy
+    val/
+      manifest.json
+      ...
+    test/
+      manifest.json
+      ...
 ```
 
 ### 7.3 Config Hash

@@ -154,7 +154,7 @@ python main.py cache-info
 python main.py extract-features --force
 ```
 
-Cache location: `{data_dir}/features_cache/{version}/{config_hash}/`
+Cache location: `{data_dir}/features_cache/{config_hash}/`
 
 ## Requirements
 

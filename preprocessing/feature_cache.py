@@ -118,7 +118,7 @@ def get_cache_dir(cfg: DictConfig, split: str) -> Path:
     """
     Get the cache directory for a specific split.
     
-    Structure: {cache_dir}/{version}/{config_hash}/{split}/
+    Structure: {cache_dir}/{config_hash}/{split}/
     
     Args:
         cfg: Hydra DictConfig.
@@ -128,9 +128,8 @@ def get_cache_dir(cfg: DictConfig, split: str) -> Path:
         Path to the cache directory.
     """
     cache_root = Path(cfg.features.cache_dir)
-    version = cfg.features.version
     config_hash = compute_config_hash(cfg)
-    return cache_root / version / config_hash / split
+    return cache_root / config_hash / split
 
 
 def get_manifest_path(cache_dir: Path) -> Path:
