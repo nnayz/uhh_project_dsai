@@ -1,0 +1,14 @@
+artifact_uri: /export/home/4huda/group5/outputs/protonet_baseline/experiment_3/mlruns/326113323160732592/ce789805060b44f2981d5e23493d7652/artifacts
+end_time: 1767512468816
+entry_point_name: ''
+experiment_id: '326113323160732592'
+lifecycle_stage: active
+run_id: ce789805060b44f2981d5e23493d7652
+run_name: experiment_3
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1767499075281
+status: 3
+tags: []
+user_id: 4huda
