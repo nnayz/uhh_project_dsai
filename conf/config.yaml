@@ -42,7 +42,7 @@ features:
   n_fft: 1024
   n_mels: 128
   hop_mel: 256
-  feature_types: logmel
+  feature_types: pcen
   embedding_dim: 2048
   drop_rate: 0.1
   with_bias: false
