@@ -5,6 +5,9 @@ notebooks/data
 # Main Project data
 msc-proj
 
+# Feature cache symlink
+feature-cache
+
 .venv
 
 # Python build artifacts

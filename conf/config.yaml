@@ -21,8 +21,8 @@ train: true
 test: true
 seed: 1234
 disable_cudnn: false
-name: "protonet_baseline"
-exp_name: "v1_run"
+name: "mlflow_experiments"
+# exp_name is provided via CLI --exp-name flag (required)
 
 # Path Configuration
 path:
