@@ -4,7 +4,7 @@ Generic Lightning-powered training entry point using Hydra configuration.
 This trainer is architecture-agnostic and uses the DataModule for data handling.
 It supports the two-phase baseline v1 workflow:
 
-    Phase 1 (offline): python main.py extract-features
+    Phase 1 (offline): g5 extract-features
     Phase 2 (online):  python archs/train.py arch=v1
 
 The trainer automatically uses cached features if available (cfg.features.use_cache=true).

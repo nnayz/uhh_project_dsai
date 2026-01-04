@@ -654,48 +654,33 @@ early_stopping:
 
 ```bash
 # Extract features for all splits
-python main.py extract-features
+g5 extract-features
 
 # Extract for specific split
-python main.py extract-features --split train
+g5 extract-features --split train
 
 # Force re-extraction
-python main.py extract-features --force
+g5 extract-features --force
 
 # Check cache info
-python main.py cache-info
+g5 cache-info
 
 # Verify cache integrity
-python main.py verify-cache
+g5 verify-cache
 ```
 
 ### Training (Phase 2)
 
 ```bash
-<<<<<<< HEAD
-<<<<<<< HEAD
-# Train with cached features
-python main.py train-lightning v1
-
-# Train with custom parameters
-python main.py train-lightning v1 arch.training.max_epochs=100
-=======
 # Train with cached features (default)
-python main.py train-lightning v1
+g5 train v1
 
 # Train with custom parameters
-python main.py train-lightning v1 arch.training.learning_rate=0.0005
->>>>>>> f21206b (feat: feature cachine, reduced train time)
-=======
-# Train with cached features
-python main.py train-lightning v1
-
-# Train with custom parameters
-python main.py train-lightning v1 arch.training.max_epochs=100
->>>>>>> 0fd03c6 (Feature caching support with callbacks)
+g5 train v1 arch.training.max_epochs=100
+g5 train v1 arch.training.learning_rate=0.0005
 
 # Train without cache (on-the-fly extraction)
-python main.py train-lightning v1 --no-cache
+g5 train v1 --no-cache
 ```
 
 <<<<<<< HEAD
@@ -751,7 +736,7 @@ This is the defining characteristic of baseline v1.
 
 If you adopt baseline v1 faithfully:
 
-1. **Feature extraction should be a separate step** (`python main.py extract-features`)
+1. **Feature extraction should be a separate step** (`g5 extract-features`)
 2. **`.npy` files become your training dataset**
 3. **Model code should never touch `.wav` files**
 4. **Any change to feature parameters requires re-extraction**

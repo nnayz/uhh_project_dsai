@@ -5,8 +5,8 @@ This DataModule encapsulates the entire data pipeline for training and evaluatio
 supporting both cached features (Phase 2) and on-the-fly extraction (legacy mode).
 
 The recommended workflow is:
-    1. Run feature extraction once (Phase 1): python main.py extract-features
-    2. Training uses cached features (Phase 2): python main.py train-lightning v1
+    1. Run feature extraction once (Phase 1): g5 extract-features
+    2. Training uses cached features (Phase 2): g5 train v1
 """
 
 from __future__ import annotations

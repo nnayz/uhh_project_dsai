@@ -37,10 +37,10 @@ def cli():
     Workflow:
     
     1. Extract features (Phase 1 - offline):
-       python main.py extract-features
+       g5 extract-features
     
     2. Train model (Phase 2 - uses cached features):
-       python main.py train v1
+       g5 train v1
     """
     pass
 
@@ -251,13 +251,13 @@ def train(arch, no_cache, exp_name, overrides):
     
     Examples:
     
-        python main.py train v1
+        g5 train v1
         
-        python main.py train v1 --exp-name my_experiment
+        g5 train v1 --exp-name my_experiment
         
-        python main.py train v1 arch.training.max_epochs=100
+        g5 train v1 arch.training.max_epochs=100
         
-        python main.py train v1 --no-cache
+        g5 train v1 --no-cache
     """
     import subprocess
     import sys
@@ -295,7 +295,7 @@ def test(checkpoint, arch, overrides):
     CHECKPOINT: Path to the model checkpoint file (.ckpt)
     
     Example:
-        python main.py test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
+        g5 test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
     """
     import subprocess
     import sys

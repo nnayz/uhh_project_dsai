@@ -5,17 +5,22 @@ Few-shot classification of animal vocalizations using Prototypical Networks. The
 ## Quick Start
 
 ```bash
-# Install
-pip install -e .
+# Install dependencies using uv
+uv sync
+
+# Activate virtual environment
+source .venv/bin/activate  # On Linux/Mac
+# or
+.venv\Scripts\activate  # On Windows
 
 # 1. Extract features (run once)
-python main.py extract-features
+g5 extract-features
 
 # 2. Train the model
-python main.py train v1
+g5 train v1
 
 # 3. Test the model
-python main.py test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
+g5 test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
 ```
 
 ## Training Pipeline
@@ -44,16 +49,16 @@ Phase 2 (online, repeated):
 
 ```bash
 # Basic training
-python main.py train v1
+g5 train v1
 
 # Custom experiment name
-python main.py train v1 --exp-name my_experiment
+g5 train v1 --exp-name my_experiment
 
 # Override hyperparameters
-python main.py train v1 arch.training.max_epochs=100 arch.training.learning_rate=0.0005
+g5 train v1 arch.training.max_epochs=100 arch.training.learning_rate=0.0005
 
 # Change episode configuration
-python main.py train v1 train_param.k_way=5 train_param.n_shot=3
+g5 train v1 train_param.k_way=5 train_param.n_shot=3
 ```
 
 See [docs/CLI_USAGE.md](docs/CLI_USAGE.md) for complete documentation.
@@ -101,7 +106,7 @@ Configuration uses Hydra. Key parameters:
 
 Override via CLI:
 ```bash
-python main.py train v1 arch.training.learning_rate=0.0005
+g5 train v1 arch.training.learning_rate=0.0005
 ```
 
 Or edit `conf/config.yaml` directly.
@@ -145,28 +150,37 @@ Features are cached as `.npy` files for fast training:
 
 ```bash
 # Extract features (run once)
-python main.py extract-features
+g5 extract-features
 
 # Check cache status
-python main.py cache-info
+g5 cache-info
 
 # Force re-extraction after config change
-python main.py extract-features --force
+g5 extract-features --force
 ```
 
 Cache location: `{data_dir}/features_cache/{config_hash}/`
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.12+
+- uv (package manager)
 - PyTorch 2.0+
 - PyTorch Lightning
 - Hydra
 - librosa
 - MLflow (optional, for tracking)
 
+### Installation
+
 ```bash
-pip install -e .
+# Install dependencies using uv
+uv sync
+
+# Activate virtual environment
+source .venv/bin/activate  # On Linux/Mac
+# or
+.venv\Scripts\activate  # On Windows
 ```
 
 ## License

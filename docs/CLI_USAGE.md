@@ -2,17 +2,31 @@
 
 This document provides a complete reference for the DCASE Few-Shot Bioacoustic command-line interface.
 
+## Setup
+
+Before using the CLI, ensure you have installed dependencies and activated the virtual environment:
+
+```bash
+# Install dependencies using uv
+uv sync
+
+# Activate virtual environment
+source .venv/bin/activate  # On Linux/Mac
+# or
+.venv\Scripts\activate  # On Windows
+```
+
 ## Quick Start
 
 ```bash
 # 1. Extract features (run once)
-python main.py extract-features
+g5 extract-features
 
 # 2. Train the model
-python main.py train v1
+g5 train v1
 
 # 3. Test the model
-python main.py test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
+g5 test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
 ```
 
 ## Commands Overview
@@ -32,7 +46,7 @@ python main.py test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
 ### Basic Training
 
 ```bash
-python main.py train v1
+g5 train v1
 ```
 
 This runs training with default configuration from `conf/config.yaml`.
@@ -40,7 +54,7 @@ This runs training with default configuration from `conf/config.yaml`.
 ### Training Options
 
 ```bash
-python main.py train [ARCH] [OPTIONS] [OVERRIDES]
+g5 train [ARCH] [OPTIONS] [OVERRIDES]
 ```
 
 **Arguments:**
@@ -61,26 +75,26 @@ python main.py train [ARCH] [OPTIONS] [OVERRIDES]
 
 ```bash
 # Basic training
-python main.py train v1
+g5 train v1
 
 # Custom experiment name
-python main.py train v1 --exp-name my_experiment
+g5 train v1 --exp-name my_experiment
 
 # Modify hyperparameters
-python main.py train v1 arch.training.max_epochs=100
-python main.py train v1 arch.training.learning_rate=0.0005
+g5 train v1 arch.training.max_epochs=100
+g5 train v1 arch.training.learning_rate=0.0005
 
 # Multiple overrides
-python main.py train v1 \
+g5 train v1 \
     arch.training.max_epochs=100 \
     arch.training.learning_rate=0.0005 \
     train_param.k_way=5
 
 # Train without feature cache (slower, for debugging)
-python main.py train v1 --no-cache
+g5 train v1 --no-cache
 
 # Change episode configuration
-python main.py train v1 \
+g5 train v1 \
     train_param.k_way=5 \
     train_param.n_shot=3 \
     train_param.num_episodes=1000
@@ -105,7 +119,7 @@ python main.py train v1 \
 ### Test a Checkpoint
 
 ```bash
-python main.py test CHECKPOINT [OPTIONS] [OVERRIDES]
+g5 test CHECKPOINT [OPTIONS] [OVERRIDES]
 ```
 
 **Arguments:**
@@ -125,13 +139,13 @@ python main.py test CHECKPOINT [OPTIONS] [OVERRIDES]
 
 ```bash
 # Test the last checkpoint
-python main.py test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
+g5 test outputs/protonet_baseline/v1_run/checkpoints/last.ckpt
 
 # Test the best checkpoint
-python main.py test outputs/protonet_baseline/v1_run/checkpoints/v1_050_0.8500.ckpt
+g5 test outputs/protonet_baseline/v1_run/checkpoints/v1_050_0.8500.ckpt
 
 # Test with different episode config
-python main.py test checkpoints/model.ckpt train_param.k_way=5
+g5 test checkpoints/model.ckpt train_param.k_way=5
 ```
 
 ## Feature Extraction
@@ -139,7 +153,7 @@ python main.py test checkpoints/model.ckpt train_param.k_way=5
 ### Extract All Features
 
 ```bash
-python main.py extract-features
+g5 extract-features
 ```
 
 This extracts features for train, validation, and test splits.
@@ -147,7 +161,7 @@ This extracts features for train, validation, and test splits.
 ### Options
 
 ```bash
-python main.py extract-features [OPTIONS]
+g5 extract-features [OPTIONS]
 ```
 
 | Option | Description | Default |
@@ -159,16 +173,16 @@ python main.py extract-features [OPTIONS]
 
 ```bash
 # Extract all splits
-python main.py extract-features
+g5 extract-features
 
 # Extract only training features
-python main.py extract-features --split train
+g5 extract-features --split train
 
 # Force re-extraction
-python main.py extract-features --force
+g5 extract-features --force
 
 # Extract specific split with force
-python main.py extract-features --split val --force
+g5 extract-features --split val --force
 ```
 
 ### Feature Cache Location
@@ -193,7 +207,7 @@ Example:
 ### View Cache Information
 
 ```bash
-python main.py cache-info
+g5 cache-info
 ```
 
 Shows:
@@ -206,7 +220,7 @@ Shows:
 ### Options
 
 ```bash
-python main.py cache-info [OPTIONS]
+g5 cache-info [OPTIONS]
 ```
 
 | Option | Description | Default |
@@ -217,16 +231,16 @@ python main.py cache-info [OPTIONS]
 
 ```bash
 # Show all cache info
-python main.py cache-info
+g5 cache-info
 
 # Show only training cache
-python main.py cache-info --split train
+g5 cache-info --split train
 ```
 
 ### Verify Cache Integrity
 
 ```bash
-python main.py verify-cache
+g5 verify-cache
 ```
 
 Checks that all cached feature files exist and are valid.
@@ -235,10 +249,10 @@ Checks that all cached feature files exist and are valid.
 
 ```bash
 # Verify all caches
-python main.py verify-cache
+g5 verify-cache
 
 # Verify specific split
-python main.py verify-cache --split train
+g5 verify-cache --split train
 ```
 
 ## Data Listing
@@ -246,7 +260,7 @@ python main.py verify-cache --split train
 ### List Data Directories
 
 ```bash
-python main.py list-data-dir --type TYPE
+g5 list-data-dir --type TYPE
 ```
 
 | Type | Description |
@@ -259,14 +273,14 @@ python main.py list-data-dir --type TYPE
 ### Examples
 
 ```bash
-python main.py list-data-dir --type training
-python main.py list-data-dir --type all
+g5 list-data-dir --type training
+g5 list-data-dir --type all
 ```
 
 ### List Audio Files
 
 ```bash
-python main.py list-all-audio-files
+g5 list-all-audio-files
 ```
 
 Lists all audio files in the configured data directories.
@@ -329,10 +343,10 @@ Then open http://localhost:5000 in your browser.
 
 ```bash
 # Use specific GPU
-CUDA_VISIBLE_DEVICES=0 python main.py train v1
+CUDA_VISIBLE_DEVICES=0 g5 train v1
 
 # Show full error traces
-HYDRA_FULL_ERROR=1 python main.py train v1
+HYDRA_FULL_ERROR=1 g5 train v1
 ```
 
 ## Troubleshooting
@@ -342,13 +356,13 @@ HYDRA_FULL_ERROR=1 python main.py train v1
 **No features cached:**
 ```bash
 # Run feature extraction first
-python main.py extract-features
+g5 extract-features
 ```
 
 **Out of memory:**
 ```bash
 # Reduce batch size or episodes
-python main.py train v1 \
+g5 train v1 \
     annotations.batch_size=1 \
     train_param.num_episodes=500
 ```
@@ -356,38 +370,38 @@ python main.py train v1 \
 **Config hash mismatch:**
 ```bash
 # Force re-extraction with new config
-python main.py extract-features --force
+g5 extract-features --force
 ```
 
 **MLflow not available:**
 ```bash
-# Install MLflow
-pip install mlflow
+# Install MLflow using uv
+uv add mlflow
 
 # Or train without MLflow (falls back to console logging)
-python main.py train v1
+g5 train v1
 ```
 
 ## Complete Workflow Example
 
 ```bash
 # 1. Check data directories
-python main.py list-data-dir --type all
+g5 list-data-dir --type all
 
 # 2. Extract features (takes time, run once)
-python main.py extract-features
+g5 extract-features
 
 # 3. Verify features were extracted correctly
-python main.py cache-info
-python main.py verify-cache
+g5 cache-info
+g5 verify-cache
 
 # 4. Train the model
-python main.py train v1 --exp-name experiment_1
+g5 train v1 --exp-name experiment_1
 
 # 5. View training logs in MLflow
 mlflow ui --backend-store-uri outputs/protonet_baseline/experiment_1/mlruns
 
 # 6. Test the best model
-python main.py test outputs/protonet_baseline/experiment_1/checkpoints/last.ckpt
+g5 test outputs/protonet_baseline/experiment_1/checkpoints/last.ckpt
 ```
 

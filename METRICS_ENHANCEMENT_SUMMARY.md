@@ -84,7 +84,7 @@ Epoch 14:
 
 ### Training (unchanged)
 ```bash
-python main.py train v1
+g5 train v1
 ```
 
 ### View Metrics in MLflow

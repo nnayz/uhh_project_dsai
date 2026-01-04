@@ -94,7 +94,7 @@ source .venv/bin/activate
 python archs/train.py arch=v2
 
 # Or using the CLI wrapper
-python main.py train v2
+g5 train v2
 ```
 
 ### Testing a Trained Model
