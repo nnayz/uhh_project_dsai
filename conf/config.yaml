@@ -22,7 +22,7 @@ test: true
 seed: 1234
 disable_cudnn: false
 name: "mlflow_experiments"
-exp_name: "v1_run"
+# exp_name is provided via CLI --exp-name flag (required)
 
 # Path Configuration
 path:
