@@ -1,0 +1,4 @@
+[2026-01-04 14:59:15,539][preprocessing.datamodule][INFO] - Cache not found for train, will extract features
+[2026-01-04 14:59:15,540][preprocessing.datamodule][INFO] - Extracting features for train...
+[2026-01-04 14:59:15,540][preprocessing.feature_cache][INFO] - Extracting features for train to /data/msc-proj/features_cache/experiment_2/b92d8adeb6c5/train
+[2026-01-04 14:59:16,024][preprocessing.feature_cache][INFO] - Found 14229 segments across 174 classes

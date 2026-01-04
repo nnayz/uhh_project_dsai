@@ -14,7 +14,7 @@ source .venv/bin/activate  # On Linux/Mac
 .venv\Scripts\activate  # On Windows
 
 # 1. Extract features (run once)
-g5 extract-features
+g5 extract-features --exp-name my_experiment
 
 # 2. Train the model
 g5 train v1 --exp-name my_experiment
@@ -147,16 +147,18 @@ Features are cached as `.npy` files for fast training:
 
 ```bash
 # Extract features (run once)
-g5 extract-features
+g5 extract-features --exp-name my_experiment
 
 # Check cache status
-g5 cache-info
+g5 cache-info --exp-name my_experiment
 
 # Force re-extraction after config change
-g5 extract-features --force
+g5 extract-features --exp-name my_experiment --force
 ```
 
-Cache location: `{data_dir}/features_cache/{config_hash}/`
+Cache location: `{data_dir}/features_cache/{exp_name}/{split}/`
+
+The cache is organized by experiment name, allowing different experiments to maintain separate feature caches. Each experiment has its own cache directory.
 
 ## Requirements
 

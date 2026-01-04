@@ -37,7 +37,7 @@ def cli():
     Workflow:
     
     1. Extract features (Phase 1 - offline):
-       g5 extract-features
+       g5 extract-features --exp-name my_experiment
     
     2. Train model (Phase 2 - uses cached features):
        g5 train v1 --exp-name my_experiment
@@ -48,6 +48,12 @@ def cli():
 # Feature Extraction Commands (Phase 1)
 
 @cli.command("extract-features", help="Extract and cache features from audio (Phase 1)")
+@click.option(
+    "--exp-name", "-e",
+    type=str,
+    required=True,
+    help="Experiment name for this cache (required)"
+)
 @click.option(
     "--split", "-s",
     type=click.Choice(["train", "val", "test", "all"]),
@@ -60,29 +66,37 @@ def cli():
     default=False,
     help="Force re-extraction even if cache exists"
 )
-def extract_features(split, force):
+def extract_features(exp_name, split, force):
     """
     Extract features from audio files and cache as .npy files.
     
     This is Phase 1 of the baseline v1 pipeline:
         .wav audio → feature extraction → .npy files
+    
+    Cache structure: {cache_dir}/{exp_name}/{split}/
     """
-    cfg = load_config()
-    from preprocessing.feature_cache import extract_and_cache_features, extract_all_splits
+    import subprocess
+    import sys
     
-    logger.info("Feature extraction settings:")
-    logger.info(f"  Cache directory: {cfg.features.cache_dir}")
-    logger.info(f"  Version: {cfg.features.version}")
-    logger.info(f"  Normalize: {cfg.features.normalize} ({cfg.features.normalize_mode})")
-    logger.info(f"  Force recompute: {force}")
+    cmd = [
+        sys.executable, "archs/train.py",
+        "train=false",
+        "test=false",
+        f"+exp_name={exp_name}",
+    ]
     
-    if split == "all":
-        results = extract_all_splits(cfg, force_recompute=force)
-        logger.info("Feature Extraction Complete")
-        for split_name, (cache_dir, manifest) in results.items():
-            logger.info(f"  {split_name}: {manifest.num_samples} samples, {manifest.num_classes} classes")
-            logger.info(f"    → {cache_dir}")
-    else:
+    if split != "all":
+        # For single split, we need to call extract_and_cache_features directly
+        # But since it needs cfg, we'll pass it via Hydra
+        cfg = load_config([f"+exp_name={exp_name}"])
+        from preprocessing.feature_cache import extract_and_cache_features
+        
+        logger.info("Feature extraction settings:")
+        logger.info(f"  Experiment: {exp_name}")
+        logger.info(f"  Cache directory: {cfg.features.cache_dir}")
+        logger.info(f"  Normalize: {cfg.features.normalize} ({cfg.features.normalize_mode})")
+        logger.info(f"  Force recompute: {force}")
+        
         if split == "train":
             annotation_paths = cfg.annotations.train_files
         elif split == "val":
@@ -103,18 +117,40 @@ def extract_features(split, force):
         logger.info("Feature Extraction Complete")
         logger.info(f"  {split}: {manifest.num_samples} samples, {manifest.num_classes} classes")
         logger.info(f"  → {cache_dir}")
+    else:
+        # For all splits, use extract_all_splits
+        cfg = load_config([f"+exp_name={exp_name}"])
+        from preprocessing.feature_cache import extract_all_splits
+        
+        logger.info("Feature extraction settings:")
+        logger.info(f"  Experiment: {exp_name}")
+        logger.info(f"  Cache directory: {cfg.features.cache_dir}")
+        logger.info(f"  Normalize: {cfg.features.normalize} ({cfg.features.normalize_mode})")
+        logger.info(f"  Force recompute: {force}")
+        
+        results = extract_all_splits(cfg, force_recompute=force)
+        logger.info("Feature Extraction Complete")
+        for split_name, (cache_dir, manifest) in results.items():
+            logger.info(f"  {split_name}: {manifest.num_samples} samples, {manifest.num_classes} classes")
+            logger.info(f"    → {cache_dir}")
 
 
 @cli.command("cache-info", help="Show information about cached features")
+@click.option(
+    "--exp-name", "-e",
+    type=str,
+    required=True,
+    help="Experiment name for the cache (required)"
+)
 @click.option(
     "--split", "-s",
     type=click.Choice(["train", "val", "test", "all"]),
     default="all",
     help="Which split to show info for"
 )
-def cache_info(split):
+def cache_info(exp_name, split):
     """Display information about cached features."""
-    cfg = load_config()
+    cfg = load_config([f"+exp_name={exp_name}"])
     from preprocessing.feature_cache import get_cache_dir, get_cache_stats
     
     splits = ["train", "val", "test"] if split == "all" else [split]
@@ -147,14 +183,20 @@ def cache_info(split):
 
 @cli.command("verify-cache", help="Verify integrity of cached features")
 @click.option(
+    "--exp-name", "-e",
+    type=str,
+    required=True,
+    help="Experiment name for the cache (required)"
+)
+@click.option(
     "--split", "-s",
     type=click.Choice(["train", "val", "test", "all"]),
     default="all",
     help="Which split to verify"
 )
-def verify_cache(split):
+def verify_cache(exp_name, split):
     """Verify that all cached feature files exist and are valid."""
-    cfg = load_config()
+    cfg = load_config([f"+exp_name={exp_name}"])
     from preprocessing.feature_cache import get_cache_dir, verify_cache_integrity
     
     splits = ["train", "val", "test"] if split == "all" else [split]
@@ -293,22 +335,58 @@ def test(checkpoint, arch, overrides):
     
     CHECKPOINT: Path to the model checkpoint file (.ckpt)
     
+    The exp_name is automatically extracted from the checkpoint path and used for:
+    - Loading the checkpoint
+    - Finding the corresponding feature cache: {cache_dir}/{exp_name}/{split}/
+    
+    Expected path format: outputs/mlflow_experiments/{exp_name}/checkpoints/...
+    
     Example:
         g5 test outputs/mlflow_experiments/my_experiment/checkpoints/last.ckpt
     """
     import subprocess
     import sys
+    from pathlib import Path
+    
+    # Extract exp_name from checkpoint path
+    # Expected: outputs/mlflow_experiments/{exp_name}/checkpoints/{checkpoint_file}
+    # Structure: checkpoint -> checkpoints -> exp_name directory -> mlflow_experiments
+    checkpoint_path = Path(checkpoint).resolve()
+    try:
+        # Navigate up from checkpoint file: checkpoints -> exp_name -> mlflow_experiments
+        exp_name = checkpoint_path.parent.parent.name
+        
+        # Validate that we're in the correct structure
+        if exp_name == "mlflow_experiments" or exp_name == "checkpoints":
+            # Try going up one more level if needed
+            if checkpoint_path.parent.parent.parent.name == "mlflow_experiments":
+                exp_name = checkpoint_path.parent.parent.parent.parent.name
+            else:
+                exp_name = checkpoint_path.parent.parent.parent.name
+        
+        # Final validation
+        if exp_name in ["mlflow_experiments", "checkpoints", "outputs"]:
+            raise ValueError(f"Could not extract valid exp_name from path: {checkpoint_path}")
+            
+    except (IndexError, AttributeError, ValueError) as e:
+        logger.error(
+            f"Could not extract exp_name from checkpoint path: {checkpoint}. "
+            f"Expected format: outputs/mlflow_experiments/{{exp_name}}/checkpoints/{{checkpoint_file}}.ckpt"
+        )
+        raise click.ClickException(f"Invalid checkpoint path format: {e}")
     
     cmd = [
         sys.executable, "archs/train.py",
         f"arch={arch}",
         "train=false",
         "test=true",
+        f"+exp_name={exp_name}",
         f"arch.training.load_weight_from={checkpoint}",
     ]
     cmd.extend(overrides)
     
     logger.info(f"Testing model from checkpoint: {checkpoint}")
+    logger.info(f"Extracted exp_name: {exp_name} (used for checkpoint and cache lookup)")
     logger.info(f"Command: {' '.join(cmd)}")
     
     subprocess.run(cmd, check=True)

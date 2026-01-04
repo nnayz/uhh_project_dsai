@@ -118,7 +118,7 @@ def get_cache_dir(cfg: DictConfig, split: str) -> Path:
     """
     Get the cache directory for a specific split.
     
-    Structure: {cache_dir}/{config_hash}/{split}/
+    Structure: {cache_dir}/{exp_name}/{split}/
     
     Args:
         cfg: Hydra DictConfig.
@@ -128,8 +128,8 @@ def get_cache_dir(cfg: DictConfig, split: str) -> Path:
         Path to the cache directory.
     """
     cache_root = Path(cfg.features.cache_dir)
-    config_hash = compute_config_hash(cfg)
-    return cache_root / config_hash / split
+    exp_name = cfg.exp_name
+    return cache_root / exp_name / split
 
 
 def get_manifest_path(cache_dir: Path) -> Path:
@@ -244,17 +244,11 @@ def extract_and_cache_features(
     if not force_recompute and cache_dir.exists():
         manifest = load_manifest(cache_dir)
         if manifest is not None:
-            expected_hash = compute_config_hash(cfg)
-            if manifest.config_hash == expected_hash:
-                logger.info(
-                    f"Using cached features for {split} from {cache_dir} "
-                    f"({manifest.num_samples} samples)"
-                )
-                return cache_dir, manifest
-            else:
-                logger.warning(
-                    f"Config hash mismatch for {split}. Re-extracting features..."
-                )
+            logger.info(
+                f"Using cached features for {split} from {cache_dir} "
+                f"({manifest.num_samples} samples)"
+            )
+            return cache_dir, manifest
     
     # Create cache directory
     cache_dir.mkdir(parents=True, exist_ok=True)

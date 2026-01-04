@@ -150,19 +150,20 @@ g5 test outputs/mlflow_experiments/my_experiment/checkpoints/last.ckpt train_par
 ### Extract All Features
 
 ```bash
-g5 extract-features
+g5 extract-features --exp-name my_experiment
 ```
 
-This extracts features for train, validation, and test splits.
+This extracts features for train, validation, and test splits. The `--exp-name` flag is required and organizes caches by experiment name.
 
 ### Options
 
 ```bash
-g5 extract-features [OPTIONS]
+g5 extract-features --exp-name EXPERIMENT [OPTIONS]
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
+| `--exp-name`, `-e` | Experiment name for this cache (required) | - |
 | `--split`, `-s` | Split to extract (train/val/test/all) | all |
 | `--force`, `-f` | Force re-extraction even if cache exists | false |
 
@@ -170,28 +171,28 @@ g5 extract-features [OPTIONS]
 
 ```bash
 # Extract all splits
-g5 extract-features
+g5 extract-features --exp-name my_experiment
 
 # Extract only training features
-g5 extract-features --split train
+g5 extract-features --exp-name my_experiment --split train
 
 # Force re-extraction
-g5 extract-features --force
+g5 extract-features --exp-name my_experiment --force
 
 # Extract specific split with force
-g5 extract-features --split val --force
+g5 extract-features --exp-name my_experiment --split val --force
 ```
 
 ### Feature Cache Location
 
 Features are cached in:
 ```
-{path.root_dir}/features_cache/{config_hash}/{split}/
+{path.root_dir}/features_cache/{exp_name}/{split}/
 ```
 
 Example:
 ```
-/data/msc-proj/features_cache/abc123def456/train/
+/data/msc-proj/features_cache/my_experiment/train/
   manifest.json
   BV/
     BV_file1_0.500_1.200.npy
@@ -199,12 +200,14 @@ Example:
     PB_file1_1.000_2.500.npy
 ```
 
+The cache is organized by experiment name, allowing different experiments to have separate feature caches. Each experiment maintains its own cache directory.
+
 ## Cache Management
 
 ### View Cache Information
 
 ```bash
-g5 cache-info
+g5 cache-info --exp-name my_experiment
 ```
 
 Shows:
@@ -217,27 +220,28 @@ Shows:
 ### Options
 
 ```bash
-g5 cache-info [OPTIONS]
+g5 cache-info --exp-name EXPERIMENT [OPTIONS]
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
+| `--exp-name`, `-e` | Experiment name for the cache (required) | - |
 | `--split`, `-s` | Split to show info for | all |
 
 ### Examples
 
 ```bash
 # Show all cache info
-g5 cache-info
+g5 cache-info --exp-name my_experiment
 
 # Show only training cache
-g5 cache-info --split train
+g5 cache-info --exp-name my_experiment --split train
 ```
 
 ### Verify Cache Integrity
 
 ```bash
-g5 verify-cache
+g5 verify-cache --exp-name my_experiment
 ```
 
 Checks that all cached feature files exist and are valid.
@@ -246,10 +250,10 @@ Checks that all cached feature files exist and are valid.
 
 ```bash
 # Verify all caches
-g5 verify-cache
+g5 verify-cache --exp-name my_experiment
 
 # Verify specific split
-g5 verify-cache --split train
+g5 verify-cache --exp-name my_experiment --split train
 ```
 
 ## Data Listing
@@ -353,7 +357,7 @@ HYDRA_FULL_ERROR=1 g5 train v1 --exp-name my_experiment
 **No features cached:**
 ```bash
 # Run feature extraction first
-g5 extract-features
+g5 extract-features --exp-name my_experiment
 ```
 
 **Out of memory:**
@@ -386,11 +390,11 @@ g5 train v1 --exp-name my_experiment
 g5 list-data-dir --type all
 
 # 2. Extract features (takes time, run once)
-g5 extract-features
+g5 extract-features --exp-name experiment_1
 
 # 3. Verify features were extracted correctly
-g5 cache-info
-g5 verify-cache
+g5 cache-info --exp-name experiment_1
+g5 verify-cache --exp-name experiment_1
 
 # 4. Train the model
 g5 train v1 --exp-name experiment_1
