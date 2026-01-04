@@ -449,8 +449,12 @@ def main(cfg: DictConfig) -> None:
         
         # Find and log best checkpoint
         best_ckpt = None
+        checkpoint_callback = None
         for callback in callbacks:
-            if hasattr(callback, "best_model_path"):
+            # Check if this is a ModelCheckpoint callback
+            from lightning.pytorch.callbacks import ModelCheckpoint
+            if isinstance(callback, ModelCheckpoint):
+                checkpoint_callback = callback
                 best_ckpt = callback.best_model_path
                 break
         
@@ -461,6 +465,10 @@ def main(cfg: DictConfig) -> None:
             # Log the best checkpoint as artifact
             if Path(best_ckpt).exists():
                 mf_logger.log_artifact(best_ckpt, "checkpoints")
+            else:
+                mf_logger.warning(f"Best checkpoint path exists but file not found: {best_ckpt}")
+        else:
+            mf_logger.warning(f"Best checkpoint path not set by ModelCheckpoint callback. Available checkpoints in {cfg.runtime.ckpt_dir}: {list(Path(cfg.runtime.ckpt_dir).glob('*.ckpt')) if Path(cfg.runtime.ckpt_dir).exists() else 'N/A'}")
         
         # Log final metrics
         if hasattr(trainer, "callback_metrics"):
@@ -477,7 +485,11 @@ def main(cfg: DictConfig) -> None:
             datamodule.setup("test")
             if datamodule.test_dataset is not None:
                 # Use loaded checkpoint if in test-only mode, otherwise use best from training
-                ckpt_path = cfg.arch.training.load_weight_from if test_only_mode else "best"
+                if test_only_mode:
+                    ckpt_path = cfg.arch.training.load_weight_from
+                else:
+                    # Rely on "best" string - PyTorch Lightning will resolve it using ModelCheckpoint's best_model_path
+                    ckpt_path = "best"
                 mf_logger.info(f"Testing with checkpoint: {ckpt_path}")
                 test_results = trainer.test(model, datamodule=datamodule, ckpt_path=ckpt_path)
                 if test_results:
