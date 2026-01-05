@@ -237,7 +237,7 @@ Before saving or modeling, a channel dimension is added:
 ### Cache Directory Structure
 
 ```
-{cache_dir}/{version}/{config_hash}/{split}/
+{cache_dir}/{config_hash}/{split}/
   manifest.json
   {class_name}/
     {wav_stem}_{start}_{end}.npy
@@ -256,7 +256,7 @@ This matches CNN input expectations:
 ### Cache Directory Structure
 
 ```
-{cache_dir}/{version}/{config_hash}/{split}/
+{cache_dir}/{config_hash}/{split}/
   manifest.json
   {class_name}/
     {wav_stem}_{start}_{end}.npy
@@ -265,25 +265,24 @@ This matches CNN input expectations:
 <<<<<<< HEAD
 ### 7.2 Cache Directory Structure
 
-Features are saved in a versioned, hash-organized structure:
+Features are saved in a hash-organized structure:
 
 ```
 {cache_dir}/
-  {version}/
-    {config_hash}/
-      train/
-        manifest.json           # Metadata about cached features
-        BV/
-          BV_file1_0.500_1.200.npy
-          BV_file1_2.100_3.500.npy
-        PB/
-          PB_file1_1.000_2.000.npy
-      val/
-        manifest.json
-        ...
-      test/
-        manifest.json
-        ...
+  {config_hash}/
+    train/
+      manifest.json           # Metadata about cached features
+      BV/
+        BV_file1_0.500_1.200.npy
+        BV_file1_2.100_3.500.npy
+      PB/
+        PB_file1_1.000_2.000.npy
+    val/
+      manifest.json
+      ...
+    test/
+      manifest.json
+      ...
 ```
 
 ### 7.3 Config Hash
@@ -655,48 +654,33 @@ early_stopping:
 
 ```bash
 # Extract features for all splits
-python main.py extract-features
+g5 extract-features
 
 # Extract for specific split
-python main.py extract-features --split train
+g5 extract-features --split train
 
 # Force re-extraction
-python main.py extract-features --force
+g5 extract-features --force
 
 # Check cache info
-python main.py cache-info
+g5 cache-info
 
 # Verify cache integrity
-python main.py verify-cache
+g5 verify-cache
 ```
 
 ### Training (Phase 2)
 
 ```bash
-<<<<<<< HEAD
-<<<<<<< HEAD
-# Train with cached features
-python main.py train-lightning v1
+# Train with cached features (exp-name is required)
+g5 train v1 --exp-name my_experiment
 
 # Train with custom parameters
-python main.py train-lightning v1 arch.training.max_epochs=100
-=======
-# Train with cached features (default)
-python main.py train-lightning v1
-
-# Train with custom parameters
-python main.py train-lightning v1 arch.training.learning_rate=0.0005
->>>>>>> f21206b (feat: feature cachine, reduced train time)
-=======
-# Train with cached features
-python main.py train-lightning v1
-
-# Train with custom parameters
-python main.py train-lightning v1 arch.training.max_epochs=100
->>>>>>> 0fd03c6 (Feature caching support with callbacks)
+g5 train v1 --exp-name my_experiment arch.training.max_epochs=100
+g5 train v1 --exp-name my_experiment arch.training.learning_rate=0.0005
 
 # Train without cache (on-the-fly extraction)
-python main.py train-lightning v1 --no-cache
+g5 train v1 --exp-name my_experiment --no-cache
 ```
 
 <<<<<<< HEAD
@@ -752,7 +736,7 @@ This is the defining characteristic of baseline v1.
 
 If you adopt baseline v1 faithfully:
 
-1. **Feature extraction should be a separate step** (`python main.py extract-features`)
+1. **Feature extraction should be a separate step** (`g5 extract-features`)
 2. **`.npy` files become your training dataset**
 3. **Model code should never touch `.wav` files**
 4. **Any change to feature parameters requires re-extraction**
