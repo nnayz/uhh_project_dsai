@@ -155,7 +155,7 @@ def build_report(
     save_path,
     main_set_name="EVAL",
     team_name="test_team",
-    **kwargs
+    **kwargs,
 ):
 
     # datetime object containing current date and time

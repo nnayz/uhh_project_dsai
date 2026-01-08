@@ -320,11 +320,7 @@ class ProtoNetLightningModule(L.LightningModule):
                     self.onset_offset[k]["offset_arr"], onset_offset[k][1]
                 )
 
-        out_root = (
-            Path("outputs")
-            / "val_eval"
-            / f"epoch_{self.current_epoch:03d}"
-        )
+        out_root = Path("outputs") / "val_eval" / f"epoch_{self.current_epoch:03d}"
         out_root.mkdir(parents=True, exist_ok=True)
 
         best = None
@@ -357,7 +353,9 @@ class ProtoNetLightningModule(L.LightningModule):
                 best_label = f"raw_{k}"
 
             for threshold in np.arange(0.2, 0.6, 0.1):
-                out_csv = alpha_dir / f"Eval_VAL_threshold_ada_postproc_{threshold:.1f}.csv"
+                out_csv = (
+                    alpha_dir / f"Eval_VAL_threshold_ada_postproc_{threshold:.1f}.csv"
+                )
                 post_proc(
                     self.trainer.datamodule.path.eval_dir + "/",
                     str(eval_raw),
@@ -376,7 +374,10 @@ class ProtoNetLightningModule(L.LightningModule):
                     best_label = f"minlen_{k}_{threshold:.1f}"
 
             for threshold_length in np.arange(0.05, 0.25, 0.05):
-                out_csv = alpha_dir / f"Eval_VAL_threshold_fix_length_postproc_{threshold_length:.2f}.csv"
+                out_csv = (
+                    alpha_dir
+                    / f"Eval_VAL_threshold_fix_length_postproc_{threshold_length:.2f}.csv"
+                )
                 post_proc_new(
                     self.trainer.datamodule.path.eval_dir + "/",
                     str(eval_raw),

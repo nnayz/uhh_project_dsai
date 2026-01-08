@@ -176,17 +176,27 @@ def evaluate(pred, dataset, output_dir):
     best_label = "raw"
 
     for threshold in np.arange(0.2, 0.6, 0.1):
-        out_csv = output_dir / f"Eval_{dataset_name}_threshold_ada_postproc_{threshold:.1f}.csv"
+        out_csv = (
+            output_dir
+            / f"Eval_{dataset_name}_threshold_ada_postproc_{threshold:.1f}.csv"
+        )
         post_proc(val_path, str(eval_raw), str(out_csv), threshold=threshold)
         scores, _, _, _ = eval_fn(
-            str(out_csv), val_path, f"run_minlen_{threshold:.1f}", dataset_name, str(output_dir)
+            str(out_csv),
+            val_path,
+            f"run_minlen_{threshold:.1f}",
+            dataset_name,
+            str(output_dir),
         )
         if scores["fmeasure"] > best["fmeasure"]:
             best = scores
             best_label = f"minlen_{threshold:.1f}"
 
     for threshold_length in np.arange(0.05, 0.25, 0.05):
-        out_csv = output_dir / f"Eval_{dataset_name}_threshold_fix_length_postproc_{threshold_length:.2f}.csv"
+        out_csv = (
+            output_dir
+            / f"Eval_{dataset_name}_threshold_fix_length_postproc_{threshold_length:.2f}.csv"
+        )
         post_proc_new(
             val_path,
             str(eval_raw),
