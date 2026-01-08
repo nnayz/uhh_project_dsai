@@ -3,21 +3,21 @@
 
 model_checkpoint:
   _target_: lightning.pytorch.callbacks.ModelCheckpoint
-  monitor: "val/acc"  # baseline-style metric name
-  mode: "max"
+  monitor: "val/loss"
+  mode: "min"
   save_top_k: 1
   save_last: true
   verbose: true
   dirpath: ${runtime.ckpt_dir}
-  filename: "epoch_{epoch:03d}_val_acc_{val/acc:.4f}"
+  filename: "epoch_{epoch:03d}_val_loss_{val/loss:.4f}"
   auto_insert_metric_name: false
   every_n_epochs: 1
   save_on_train_epoch_end: false
 
 early_stopping:
   _target_: lightning.pytorch.callbacks.EarlyStopping
-  monitor: "val/acc"
-  mode: "max"
+  monitor: "val/loss"
+  mode: "min"
   patience: 10
   min_delta: 0.0
 

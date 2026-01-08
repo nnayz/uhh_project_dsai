@@ -112,6 +112,112 @@ def check_features(exp_name, split):
         logger.warning(f"  {path}")
 
 
+# Evaluation Commands
+
+
+@cli.command("evaluate", help="Evaluate prediction CSV with baseline metrics")
+@click.option(
+    "--pred",
+    "-p",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    required=True,
+    help="Prediction CSV with columns: Audiofilename, Starttime, Endtime",
+)
+@click.option(
+    "--dataset",
+    "-d",
+    type=click.Choice(["val", "test"]),
+    default="val",
+    help="Dataset to evaluate against",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(file_okay=False, path_type=Path),
+    required=False,
+    help="Directory to write evaluation outputs",
+)
+def evaluate(pred, dataset, output_dir):
+    """Run baseline-style evaluation and optional PSDS scoring."""
+    import os
+    import shutil
+    import numpy as np
+
+    cfg = load_config()
+    data_dir = cfg.path.eval_dir if dataset == "val" else cfg.path.test_dir
+    if not data_dir:
+        logger.error(f"No path configured for dataset: {dataset}")
+        return
+
+    val_path = data_dir
+    if not val_path.endswith("/"):
+        val_path += "/"
+
+    output_dir = output_dir or (Path("outputs") / "evaluation" / pred.stem)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    eval_raw = output_dir / "Eval_raw.csv"
+    if pred.resolve() != eval_raw.resolve():
+        shutil.copy(pred, eval_raw)
+
+    from utils.evaluation import evaluate as eval_fn
+    from utils.post_proc import post_processing as post_proc
+    from utils.post_proc_new import post_processing as post_proc_new
+
+    dataset_name = dataset.upper()
+
+    best = None
+    best_label = None
+
+    raw_scores, _, _, _ = eval_fn(
+        str(eval_raw), val_path, "run_raw", dataset_name, str(output_dir)
+    )
+    best = raw_scores
+    best_label = "raw"
+
+    for threshold in np.arange(0.2, 0.6, 0.1):
+        out_csv = output_dir / f"Eval_{dataset_name}_threshold_ada_postproc_{threshold:.1f}.csv"
+        post_proc(val_path, str(eval_raw), str(out_csv), threshold=threshold)
+        scores, _, _, _ = eval_fn(
+            str(out_csv), val_path, f"run_minlen_{threshold:.1f}", dataset_name, str(output_dir)
+        )
+        if scores["fmeasure"] > best["fmeasure"]:
+            best = scores
+            best_label = f"minlen_{threshold:.1f}"
+
+    for threshold_length in np.arange(0.05, 0.25, 0.05):
+        out_csv = output_dir / f"Eval_{dataset_name}_threshold_fix_length_postproc_{threshold_length:.2f}.csv"
+        post_proc_new(
+            val_path,
+            str(eval_raw),
+            str(out_csv),
+            threshold_length=threshold_length,
+        )
+        scores, _, _, _ = eval_fn(
+            str(out_csv),
+            val_path,
+            f"run_fixed_{threshold_length:.2f}",
+            dataset_name,
+            str(output_dir),
+        )
+        if scores["fmeasure"] > best["fmeasure"]:
+            best = scores
+            best_label = f"fixed_{threshold_length:.2f}"
+
+    logger.info(f"Best evaluation: {best_label} -> {best}")
+
+    if dataset_name == "VAL":
+        try:
+            from utils.psds_metrics import convert_eval_val, calculate_psds
+
+            eval_meta_dir = Path(__file__).parent / "utils" / "eval_meta"
+            convert_eval_val([str(output_dir)])
+            psds_score = calculate_psds([str(output_dir)], str(eval_meta_dir))
+            logger.info(f"PSDS score: {psds_score:.5f}")
+        except Exception as exc:
+            logger.warning(f"PSDS scoring skipped: {exc}")
+
+
 # Data Listing Commands
 
 
