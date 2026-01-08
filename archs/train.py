@@ -12,9 +12,13 @@ Usage:
 
 from __future__ import annotations
 
+import os
 import warnings
 from pathlib import Path
 from typing import List, Type
+
+os.environ.setdefault("NUMBA_DISABLE_CACHING", "1")
+os.environ.setdefault("NUMBA_DISABLE_JIT", "1")
 
 import hydra
 import lightning as L
@@ -28,6 +32,10 @@ from utils.mlflow_logger import get_logger, reset_logger
 
 # Get global MLflow logger
 mf_logger = get_logger()
+
+torch.use_deterministic_algorithms(True, warn_only=True)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = True
 
 
 def resolve_device(cfg: DictConfig) -> str:
@@ -79,11 +87,11 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
             emb_dim=cfg.arch.model.embedding_dim,
             distance=cfg.arch.model.distance,
             n_mels=cfg.features.n_mels,
-            conv_channels=list(cfg.arch.model.conv_channels),
-            activation=cfg.arch.model.non_linearity,
             with_bias=cfg.arch.model.with_bias,
             drop_rate=cfg.arch.model.drop_rate,
             time_max_pool_dim=cfg.arch.model.time_max_pool_dim,
+            non_linearity=cfg.arch.model.non_linearity,
+            layer_4=cfg.arch.model.layer_4,
             lr=cfg.arch.training.learning_rate,
             weight_decay=cfg.arch.training.weight_decay,
             scheduler_gamma=cfg.arch.training.scheduler_gamma,
@@ -126,7 +134,6 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
         mf_logger.log_params(
             {
                 "model/embedding_dim": cfg.arch.model.embedding_dim,
-                "model/conv_channels": str(list(cfg.arch.model.conv_channels)),
                 "model/activation": cfg.arch.model.non_linearity,
                 "model/dropout": cfg.arch.model.drop_rate,
                 "model/distance": cfg.arch.model.distance,
@@ -427,19 +434,19 @@ def main(cfg: DictConfig) -> None:
         callbacks = build_callbacks(cfg)
         pl_loggers = build_pl_loggers(cfg)
 
-        precision = "16-mixed" if accelerator == "cuda" else "32"
+        precision = "32"
         mf_logger.log_param("training/precision", precision)
 
         trainer = L.Trainer(
             max_epochs=cfg.arch.training.max_epochs,
             accelerator=accelerator,
-            devices="auto",
+            devices=1 if accelerator == "cuda" else "auto",
             precision=precision,
             callbacks=callbacks,
             logger=pl_loggers,
             log_every_n_steps=10,
             enable_progress_bar=True,
-            deterministic="warn",
+            num_sanity_val_steps=0,
             gradient_clip_val=cfg.arch.training.gradient_clip_val,
         )
 

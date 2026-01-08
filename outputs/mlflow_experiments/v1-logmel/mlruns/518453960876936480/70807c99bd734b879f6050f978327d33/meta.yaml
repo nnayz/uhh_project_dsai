@@ -1,0 +1,14 @@
+artifact_uri: /export/home/4huda/group5/outputs/mlflow_experiments/v1-logmel/mlruns/518453960876936480/70807c99bd734b879f6050f978327d33/artifacts
+end_time: 1767902050361
+entry_point_name: ''
+experiment_id: '518453960876936480'
+lifecycle_stage: active
+run_id: 70807c99bd734b879f6050f978327d33
+run_name: v1-logmel
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1767897133444
+status: 3
+tags: []
+user_id: 4huda

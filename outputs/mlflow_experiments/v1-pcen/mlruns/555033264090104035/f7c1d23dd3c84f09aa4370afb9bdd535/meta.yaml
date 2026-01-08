@@ -1,0 +1,14 @@
+artifact_uri: /export/home/4huda/group5/outputs/mlflow_experiments/v1-pcen/mlruns/555033264090104035/f7c1d23dd3c84f09aa4370afb9bdd535/artifacts
+end_time: 1767881946300
+entry_point_name: ''
+experiment_id: '555033264090104035'
+lifecycle_stage: active
+run_id: f7c1d23dd3c84f09aa4370afb9bdd535
+run_name: v1-pcen
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1767881945660
+status: 4
+tags: []
+user_id: 4huda

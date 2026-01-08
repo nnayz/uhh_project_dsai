@@ -8,10 +8,10 @@ max_epochs: ${arch.training.max_epochs}
 # Hardware
 accelerator: "auto"
 devices: "auto"
-precision: "16-mixed"
+precision: "32"
 
 # Reproducibility (use "warn" to allow ops without deterministic CUDA implementations)
-deterministic: "warn"
+deterministic: false
 
 # Logging
 log_every_n_steps: 10
@@ -23,8 +23,7 @@ gradient_clip_algorithm: "norm"
 
 # Validation
 check_val_every_n_epoch: 1
-num_sanity_val_steps: 2
+num_sanity_val_steps: 0
 
 # Performance
 enable_model_summary: true
-

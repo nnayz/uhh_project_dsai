@@ -79,6 +79,9 @@ def load_audio(
     sr = params["sr"]
 
     waveform, sr = librosa.load(path.as_posix(), sr=sr, mono=mono)
+    max_val = np.max(np.abs(waveform)) if waveform.size else 0.0
+    if max_val > 0:
+        waveform = waveform / max_val
     return waveform.astype(np.float32), sr
 
 
@@ -128,7 +131,7 @@ def waveform_to_logmel(
         fmax=fmax,
         power=2.0,
     )
-    logmel = librosa.power_to_db(mel + eps)
+    logmel = np.log(mel + eps)
     return logmel.astype(np.float32)
 
 

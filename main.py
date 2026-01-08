@@ -197,7 +197,7 @@ def train(arch, exp_name, overrides):
 
     cmd = [sys.executable, "archs/train.py", f"arch={arch}"]
 
-    cmd.append(f"exp_name={exp_name}")
+    cmd.append(f"+exp_name={exp_name}")
 
     cmd.extend(overrides)
 

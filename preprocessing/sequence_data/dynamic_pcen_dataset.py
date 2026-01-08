@@ -140,7 +140,10 @@ class PrototypeDynamicArrayDataSet(Dataset):
         if start < 0:
             start = 0  # This is due to the function time_2_frame
         total_duration = end - start
-        if total_duration < seg_len:
+        rand_start = None
+        if total_duration <= 0:
+            x = np.zeros((seg_len, pcen.shape[1]), dtype=pcen.dtype)
+        elif total_duration < seg_len:
             x = pcen[start:end]
             tile_times = np.ceil(seg_len / total_duration)
             x = np.tile(x, (int(tile_times), 1))

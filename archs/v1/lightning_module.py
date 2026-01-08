@@ -8,7 +8,7 @@ Training loop:
 
 from __future__ import annotations
 
-from typing import Dict, List, Tuple, Union
+from typing import Dict, Tuple, Union
 
 import lightning as L
 import torch
@@ -33,12 +33,11 @@ class ProtoNetLightningModule(L.LightningModule):
         scheduler_step_size: int = 10,
         scheduler_type: str = "step",
         n_mels: int = 128,
-        in_channels: int = 1,
-        conv_channels: List[int] = None,
-        activation: str = "leaky_relu",
         with_bias: bool = False,
         drop_rate: float = 0.1,
         time_max_pool_dim: int = 4,
+        non_linearity: str = "leaky_relu",
+        layer_4: bool = False,
         num_classes: int = 10,
         n_shot: int = 5,
         negative_train_contrast: bool = False,
@@ -46,18 +45,14 @@ class ProtoNetLightningModule(L.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        if conv_channels is None:
-            conv_channels = [64, 64, 64, 64]
-
         self.model = ProtoNet(
             emb_dim=emb_dim,
             distance=distance,
-            in_channels=in_channels,
-            conv_channels=conv_channels,
-            activation=activation,
             with_bias=with_bias,
             drop_rate=drop_rate,
             time_max_pool_dim=time_max_pool_dim,
+            non_linearity=non_linearity,
+            layer_4=layer_4,
         )
 
         self.lr = lr
@@ -70,8 +65,8 @@ class ProtoNetLightningModule(L.LightningModule):
 
     def _forward_embed(self, x: torch.Tensor) -> torch.Tensor:
         """Encode segments and return embeddings."""
-        if x.dim() == 3:
-            x = x.permute(0, 2, 1).unsqueeze(1)
+        if x.dim() == 4:
+            x = x.squeeze(1).permute(0, 2, 1)
         return self.model.encoder(x)
 
     def _step(self, batch) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -90,6 +85,8 @@ class ProtoNetLightningModule(L.LightningModule):
 
     def training_step(self, batch, batch_idx: int) -> torch.Tensor:
         loss, acc, dist_loss = self._step(batch)
+        cur_lr = self.trainer.optimizers[0].param_groups[0]["lr"]
+        self.log("lr", cur_lr, prog_bar=True, on_step=True, on_epoch=True)
         self.log("train/loss", loss, on_step=True, on_epoch=True, prog_bar=True)
         self.log("train/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
         return loss + dist_loss

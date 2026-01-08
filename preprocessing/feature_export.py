@@ -12,6 +12,7 @@ from typing import Iterable, List
 
 import glob
 import numpy as np
+from rich.progress import track
 
 from .preprocess import load_audio, waveform_to_logmel, waveform_to_pcen
 
@@ -66,15 +67,17 @@ def export_features(
             wav_paths = collect_wav_paths_from_dir(cfg.path.test_dir)
         else:
             wav_paths = []
-        for wav_path in wav_paths:
+        for wav_path in track(wav_paths, description=f"Exporting {split} features"):
             if not wav_path.is_file():
                 continue
             waveform, _ = load_audio(wav_path, cfg=cfg, mono=True)
             for suffix in suffixes:
-                out_path = wav_path.with_suffix(f"_{suffix}.npy")
+                out_path = wav_path.with_name(f"{wav_path.stem}_{suffix}.npy")
                 if out_path.exists() and not force:
                     continue
                 features = _extract_feature(waveform, cfg, suffix)
+                if features.ndim == 2:
+                    features = features.T
                 np.save(out_path, features)
                 total_written += 1
     return total_written
@@ -97,9 +100,9 @@ def validate_features(
             wav_paths = collect_wav_paths_from_dir(cfg.path.test_dir)
         else:
             wav_paths = []
-        for wav_path in wav_paths:
+        for wav_path in track(wav_paths, description=f"Validating {split} features"):
             for suffix in suffixes:
-                out_path = wav_path.with_suffix(f"_{suffix}.npy")
+                out_path = wav_path.with_name(f"{wav_path.stem}_{suffix}.npy")
                 if not out_path.exists():
                     missing.append(out_path)
     return missing

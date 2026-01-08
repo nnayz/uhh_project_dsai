@@ -2,34 +2,23 @@
 
 This document describes the v1 ProtoNet model and the current training flow.
 
-## Model (Conv4 encoder)
+## Model (ResNet encoder)
 
-The encoder mirrors the reference Conv4 design:
+The encoder mirrors the baseline ResNet-style design:
 
-- 4x blocks of Conv2d → BatchNorm → ReLU → MaxPool
-- Final MaxPool
+- 4 residual blocks with Conv→BN→ReLU stacks and max pooling
+- Optional layer_4 stage
+- AdaptiveAvgPool to (time_max_pool_dim, embedding_dim / (time_max_pool_dim * 64))
 - Flatten to embedding vector (no FC head, no L2 norm)
 
 ```mermaid
 flowchart LR
-    In["Log-mel spectrogram (B,1,n_mels,T)"] --> C1["Conv2d 1->64, k=3, p=1"]
-    C1 --> BN1["BatchNorm2d"]
-    BN1 --> R1["ReLU"]
-    R1 --> MP1["MaxPool2d 2x2"]
-    MP1 --> C2["Conv2d 64->64, k=3, p=1"]
-    C2 --> BN2["BatchNorm2d"]
-    BN2 --> R2["ReLU"]
-    R2 --> MP2["MaxPool2d 2x2"]
-    MP2 --> C3["Conv2d 64->64, k=3, p=1"]
-    C3 --> BN3["BatchNorm2d"]
-    BN3 --> R3["ReLU"]
-    R3 --> MP3["MaxPool2d 2x2"]
-    MP3 --> C4["Conv2d 64->64, k=3, p=1"]
-    C4 --> BN4["BatchNorm2d"]
-    BN4 --> R4["ReLU"]
-    R4 --> MP4["MaxPool2d 2x2"]
-    MP4 --> MP5["MaxPool2d 2x2 (final)"]
-    MP5 --> Flat["Flatten (B,D)"]
+    In["Log-mel spectrogram (B,T,n_mels)"] --> R1["ResBlock (64) + MaxPool"]
+    R1 --> R2["ResBlock (128) + MaxPool"]
+    R2 --> R3["ResBlock (64) + MaxPool"]
+    R3 --> R4["ResBlock (64) + MaxPool (optional)"]
+    R4 --> Pool["AdaptiveAvgPool"]
+    Pool --> Flat["Flatten (B,D)"]
 ```
 
 ## Training flow (batch-based prototypical loss)
@@ -40,7 +29,7 @@ function by averaging support samples within each class.
 ```mermaid
 flowchart TD
     Data["Dynamic segment sampler (sequence_data)"] --> Batch["Class-balanced batch (x,y)"]
-    Batch --> Enc["Conv4 encoder"]
+    Batch --> Enc["ResNet encoder"]
     Enc --> Emb["Embeddings (B,D)"]
     Emb --> Proto["Prototypes (mean per class)"]
     Proto --> Dist["Distances to prototypes"]

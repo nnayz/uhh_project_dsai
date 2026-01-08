@@ -65,7 +65,10 @@ class PrototypeDynamicDataSet(Dataset):
 
     def select_segment(self, start, end, fname):
         total_duration = end - start
-        if total_duration < self.seg_len:
+        rand_start = None
+        if total_duration <= 0:
+            x = np.zeros(int(self.train_param.sr * self.seg_len), dtype=np.float32)
+        elif total_duration < self.seg_len:
             x, _ = librosa.load(
                 fname, sr=None, mono=True, offset=start, duration=total_duration
             )

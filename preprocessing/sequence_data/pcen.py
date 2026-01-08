@@ -53,15 +53,25 @@ class Feature_Extractor:
             Feature_Extractor.mean_std[suffix] = [np.mean(all_data), np.std(all_data)]
         print(Feature_Extractor.mean_std)
 
+    def _ensure_time_major(self, feature: np.ndarray) -> np.ndarray:
+        if feature.ndim != 2:
+            return feature
+        # Older exports used (n_mels, n_frames); datasets expect (n_frames, n_mels).
+        if feature.shape[0] == self.n_mels and feature.shape[1] != self.n_mels:
+            return feature.T
+        return feature
+
     def extract_feature(self, audio_path, feature_types=None, normalized=True):
         features = []
         for suffix in self.feature_types if (feature_types is None) else feature_types:
             feature_path = audio_path.replace(".wav", "_%s.npy" % suffix)
             if not normalized:
-                features.append(np.load(feature_path))
+                loaded = np.load(feature_path)
             else:
                 mean, std = Feature_Extractor.mean_std[suffix]
-                features.append((np.load(feature_path) - mean) / std)
+                loaded = (np.load(feature_path) - mean) / std
+            loaded = self._ensure_time_major(loaded)
+            features.append(loaded)
             self.feature_lens.append(features[-1].shape[1])
         return np.concatenate(features, axis=1)
 

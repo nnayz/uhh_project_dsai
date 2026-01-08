@@ -18,7 +18,7 @@ defaults:
 print_config: true
 ignore_warnings: true
 train: true
-test: false
+test: true
 seed: 1234
 disable_cudnn: false
 name: "mlflow_experiments"
@@ -35,14 +35,14 @@ path:
 
 # Feature Extraction Configuration
 features:
-  eps: 2e-16
+  eps: 1e-8
   fmax: 11025
   fmin: 50
   sr: 22050
   n_fft: 1024
   n_mels: 128
   hop_mel: 256
-  feature_types: pcen
+  feature_types: logmel
   embedding_dim: 2048
   drop_rate: 0.1
   with_bias: false

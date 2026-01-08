@@ -161,7 +161,10 @@ class PrototypeDynamicArrayDataSetVal(Dataset):
         if start < 0:
             start = 0  # This is due to the function time_2_frame
         total_duration = end - start
-        if total_duration < seg_len:
+        rand_start = None
+        if total_duration <= 0:
+            x = np.zeros((seg_len, pcen.shape[1]), dtype=pcen.dtype)
+        elif total_duration < seg_len:
             x = pcen[start:end]
             tile_times = np.ceil(seg_len / total_duration)
             x = np.tile(x, (int(tile_times), 1))
@@ -296,8 +299,7 @@ class PrototypeDynamicArrayDataSetVal(Dataset):
         ]
 
     def get_glob_cls_name(self, file):
-        split_list = file.split("/")
-        return split_list[-2]
+        return os.path.splitext(os.path.basename(file))[0]
 
     def get_df_pos(self, file):
         df = pd.read_csv(file, header=0, index_col=False)
