@@ -18,7 +18,7 @@ defaults:
 print_config: true
 ignore_warnings: true
 train: true
-test: true
+test: false
 seed: 1234
 disable_cudnn: false
 name: "mlflow_experiments"

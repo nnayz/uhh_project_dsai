@@ -8,10 +8,10 @@ sequence-based datamodule (e.g., audio.wav -> audio_logmel.npy).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Iterable, List, Sequence
+from typing import Iterable, List
 
+import glob
 import numpy as np
-import pandas as pd
 
 from .preprocess import load_audio, waveform_to_logmel, waveform_to_pcen
 
@@ -19,45 +19,15 @@ from .preprocess import load_audio, waveform_to_logmel, waveform_to_pcen
 SUPPORTED_SUFFIXES = {"logmel", "pcen"}
 
 
-def _expand_annotation_paths(paths: Sequence[str]) -> List[Path]:
-    files: List[Path] = []
-    for p in paths:
-        path = Path(p)
-        if "*" in str(path) or "?" in str(path):
-            files.extend(sorted(Path().glob(str(path))))
-        else:
-            files.append(path)
-    return [f for f in files if f.is_file()]
-
-
-def _wav_path_from_row(csv_path: Path, wav_name: str) -> Path:
-    audio_dir = csv_path.parent
-    candidate = audio_dir / wav_name
-    if candidate.is_file():
-        return candidate
-    alt = audio_dir / (Path(wav_name).stem + ".wav")
-    return alt
-
-
-def collect_wav_paths(annotation_paths: Sequence[str]) -> List[Path]:
-    wavs: List[Path] = []
-    for csv_path in _expand_annotation_paths(annotation_paths):
-        try:
-            df = pd.read_csv(csv_path, usecols=["Audiofilename"])
-            names = df["Audiofilename"].dropna().unique().tolist()
-        except Exception:
-            names = []
-
-        if not names:
-            names = [csv_path.with_suffix(".wav").name]
-
-        for name in names:
-            wav_path = _wav_path_from_row(csv_path, name)
-            wavs.append(wav_path)
+def collect_wav_paths_from_dir(root: str) -> List[Path]:
+    if not root:
+        return []
+    pattern = str(Path(root) / "**" / "*.wav")
+    files = [Path(p) for p in glob.glob(pattern, recursive=True)]
     # dedupe while preserving order
     seen = set()
     unique = []
-    for w in wavs:
+    for w in files:
         if w in seen:
             continue
         seen.add(w)
@@ -86,18 +56,17 @@ def export_features(
             f"Unsupported feature_types={unsupported}. Supported: {sorted(SUPPORTED_SUFFIXES)}"
         )
 
-    split_map = {
-        "train": cfg.annotations.train_files,
-        "val": cfg.annotations.val_files,
-        "test": cfg.annotations.test_files,
-    }
-
     total_written = 0
     for split in splits:
-        ann_paths = split_map.get(split, [])
-        if not ann_paths:
-            continue
-        for wav_path in collect_wav_paths(ann_paths):
+        if split == "train":
+            wav_paths = collect_wav_paths_from_dir(cfg.path.train_dir)
+        elif split == "val":
+            wav_paths = collect_wav_paths_from_dir(cfg.path.eval_dir)
+        elif split == "test":
+            wav_paths = collect_wav_paths_from_dir(cfg.path.test_dir)
+        else:
+            wav_paths = []
+        for wav_path in wav_paths:
             if not wav_path.is_file():
                 continue
             waveform, _ = load_audio(wav_path, cfg=cfg, mono=True)
@@ -119,17 +88,16 @@ def validate_features(
     suffixes = cfg.features.feature_types.split("@")
     missing: List[Path] = []
 
-    split_map = {
-        "train": cfg.annotations.train_files,
-        "val": cfg.annotations.val_files,
-        "test": cfg.annotations.test_files,
-    }
-
     for split in splits:
-        ann_paths = split_map.get(split, [])
-        if not ann_paths:
-            continue
-        for wav_path in collect_wav_paths(ann_paths):
+        if split == "train":
+            wav_paths = collect_wav_paths_from_dir(cfg.path.train_dir)
+        elif split == "val":
+            wav_paths = collect_wav_paths_from_dir(cfg.path.eval_dir)
+        elif split == "test":
+            wav_paths = collect_wav_paths_from_dir(cfg.path.test_dir)
+        else:
+            wav_paths = []
+        for wav_path in wav_paths:
             for suffix in suffixes:
                 out_path = wav_path.with_suffix(f"_{suffix}.npy")
                 if not out_path.exists():

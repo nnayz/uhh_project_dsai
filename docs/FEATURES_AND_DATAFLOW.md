@@ -30,6 +30,13 @@ The segment-level cache pipeline is not used in this repo.
 - Matches the reference training behavior (dynamic sampling from full-audio arrays).
 - Keeps preprocessing simple: no segment cache to maintain.
 
+## Source of audio files
+
+Export uses the audio directories directly:
+- `path.train_dir`
+- `path.eval_dir`
+- `path.test_dir` (when set)
+
 ## CLI
 
 ```bash
