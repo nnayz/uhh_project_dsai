@@ -36,166 +36,16 @@ def cli():
 
     Workflow:
 
-    1. Extract features (Phase 1 - offline):
-       g5 extract-features --exp-name my_experiment
+    1. Export features:
+       g5 export-features
 
-    2. Train model (Phase 2 - uses cached features):
+    2. Train model:
        g5 train v1 --exp-name my_experiment
     """
     pass
 
 
 # Feature Extraction Commands (Phase 1)
-
-
-@cli.command("extract-features", help="Extract and cache features from audio (Phase 1)")
-@click.option(
-    "--exp-name",
-    "-e",
-    type=str,
-    required=True,
-    help="Experiment name for this cache (required)",
-)
-@click.option(
-    "--split",
-    "-s",
-    type=click.Choice(["train", "val", "test", "all"]),
-    default="all",
-    help="Which split to extract features for",
-)
-@click.option(
-    "--force",
-    "-f",
-    is_flag=True,
-    default=False,
-    help="Force re-extraction even if cache exists",
-)
-def extract_features(exp_name, split, force):
-    """
-    Extract features from audio files and cache as .npy files.
-
-    This is Phase 1 of the baseline v1 pipeline:
-        .wav audio → feature extraction → .npy files
-
-    Cache structure: {cache_dir}/{exp_name}/{split}/
-    """
-    import subprocess
-    import sys
-
-    cmd = [
-        sys.executable,
-        "archs/train.py",
-        "train=false",
-        "test=false",
-        f"+exp_name={exp_name}",
-    ]
-
-    if split != "all":
-        # For single split, we need to call extract_and_cache_features directly
-        # But since it needs cfg, we'll pass it via Hydra
-        cfg = load_config([f"+exp_name={exp_name}"])
-        from preprocessing.feature_cache import extract_and_cache_features
-
-        logger.info("Feature extraction settings:")
-        logger.info(f"  Experiment: {exp_name}")
-        logger.info(f"  Cache directory: {cfg.features.cache_dir}")
-        logger.info(
-            f"  Normalize: {cfg.features.normalize} ({cfg.features.normalize_mode})"
-        )
-        logger.info(f"  Force recompute: {force}")
-
-        if split == "train":
-            annotation_paths = cfg.annotations.train_files
-        elif split == "val":
-            annotation_paths = cfg.annotations.val_files
-        else:
-            annotation_paths = cfg.annotations.test_files
-
-        if not annotation_paths:
-            logger.warning(f"No annotation files configured for {split}")
-            return
-
-        cache_dir, manifest = extract_and_cache_features(
-            cfg=cfg,
-            split=split,
-            annotation_paths=annotation_paths,
-            force_recompute=force,
-        )
-        logger.info("Feature Extraction Complete")
-        logger.info(
-            f"  {split}: {manifest.num_samples} samples, {manifest.num_classes} classes"
-        )
-        logger.info(f"  → {cache_dir}")
-    else:
-        # For all splits, use extract_all_splits
-        cfg = load_config([f"+exp_name={exp_name}"])
-        from preprocessing.feature_cache import extract_all_splits
-
-        logger.info("Feature extraction settings:")
-        logger.info(f"  Experiment: {exp_name}")
-        logger.info(f"  Cache directory: {cfg.features.cache_dir}")
-        logger.info(
-            f"  Normalize: {cfg.features.normalize} ({cfg.features.normalize_mode})"
-        )
-        logger.info(f"  Force recompute: {force}")
-
-        results = extract_all_splits(cfg, force_recompute=force)
-        logger.info("Feature Extraction Complete")
-        for split_name, (cache_dir, manifest) in results.items():
-            logger.info(
-                f"  {split_name}: {manifest.num_samples} samples, {manifest.num_classes} classes"
-            )
-            logger.info(f"    → {cache_dir}")
-
-
-@cli.command("cache-info", help="Show information about cached features")
-@click.option(
-    "--exp-name",
-    "-e",
-    type=str,
-    required=True,
-    help="Experiment name for the cache (required)",
-)
-@click.option(
-    "--split",
-    "-s",
-    type=click.Choice(["train", "val", "test", "all"]),
-    default="all",
-    help="Which split to show info for",
-)
-def cache_info(exp_name, split):
-    """Display information about cached features."""
-    cfg = load_config([f"+exp_name={exp_name}"])
-    from preprocessing.feature_cache import get_cache_dir, get_cache_stats
-
-    splits = ["train", "val", "test"] if split == "all" else [split]
-
-    logger.info("Feature Cache Information")
-    logger.info(f"Cache root: {cfg.features.cache_dir}")
-    logger.info(f"Version: {cfg.features.version}")
-
-    for split_name in splits:
-        cache_dir = get_cache_dir(cfg, split_name)
-        if cache_dir.exists():
-            stats = get_cache_stats(cache_dir)
-            if "error" in stats:
-                logger.warning(f"{split_name.upper()}: {stats['error']}")
-            else:
-                logger.info(f"{split_name.upper()}:")
-                logger.info(f"  Directory: {cache_dir}")
-                logger.info(f"  Samples: {stats['num_samples']}")
-                logger.info(f"  Classes: {stats['num_classes']}")
-                logger.info(f"  Size: {stats['total_size_mb']:.2f} MB")
-                logger.info(f"  Config hash: {stats['config_hash']}")
-                logger.info(f"  Normalization: {stats['normalization']}")
-                logger.info(f"  Feature shape: {stats['feature_shape']}")
-                logger.info(f"  Class distribution:")
-                for class_name, count in stats["class_counts"].items():
-                    logger.info(f"    {class_name}: {count}")
-        else:
-            logger.warning(
-                f"{split_name.upper()}: Not cached (run extract-features first)"
-            )
 
 
 @cli.command("export-features", help="Export feature files next to audio")
@@ -262,52 +112,6 @@ def check_features(exp_name, split):
         logger.warning(f"  {path}")
 
 
-@cli.command("verify-cache", help="Verify integrity of cached features")
-@click.option(
-    "--exp-name",
-    "-e",
-    type=str,
-    required=True,
-    help="Experiment name for the cache (required)",
-)
-@click.option(
-    "--split",
-    "-s",
-    type=click.Choice(["train", "val", "test", "all"]),
-    default="all",
-    help="Which split to verify",
-)
-def verify_cache(exp_name, split):
-    """Verify that all cached feature files exist and are valid."""
-    cfg = load_config([f"+exp_name={exp_name}"])
-    from preprocessing.feature_cache import get_cache_dir, verify_cache_integrity
-
-    splits = ["train", "val", "test"] if split == "all" else [split]
-
-    logger.info("Cache Integrity Check")
-
-    all_valid = True
-    for split_name in splits:
-        cache_dir = get_cache_dir(cfg, split_name)
-        if cache_dir.exists():
-            is_valid = verify_cache_integrity(cache_dir)
-            status = "Valid" if is_valid else "Invalid"
-            if is_valid:
-                logger.info(f"{split_name}: {status}")
-            else:
-                logger.warning(f"{split_name}: {status}")
-                all_valid = False
-        else:
-            logger.warning(f"{split_name}: Not cached")
-
-    if all_valid:
-        logger.info("All caches are valid!")
-    else:
-        logger.warning(
-            "Some caches are invalid. Run extract-features --force to regenerate."
-        )
-
-
 # Data Listing Commands
 
 
@@ -363,12 +167,6 @@ def list_all_audio_files():
 @cli.command("train", help="Train model with PyTorch Lightning (Phase 2)")
 @click.argument("arch", type=click.Choice(["v1", "v2"]), default="v1")
 @click.option(
-    "--no-cache",
-    is_flag=True,
-    default=False,
-    help="Disable feature caching (extract on-the-fly)",
-)
-@click.option(
     "--exp-name",
     "-e",
     type=str,
@@ -376,7 +174,7 @@ def list_all_audio_files():
     help="Experiment name for this run (required)",
 )
 @click.argument("overrides", nargs=-1)
-def train(arch, no_cache, exp_name, overrides):
+def train(arch, exp_name, overrides):
     """
     Train the model with PyTorch Lightning.
 
@@ -392,15 +190,12 @@ def train(arch, no_cache, exp_name, overrides):
 
         g5 train v1 --exp-name my_experiment arch.training.max_epochs=100
 
-        g5 train v1 --exp-name my_experiment --no-cache
+        g5 train v1 --exp-name my_experiment
     """
     import subprocess
     import sys
 
     cmd = [sys.executable, "archs/train.py", f"arch={arch}"]
-
-    if no_cache:
-        cmd.append("features.use_cache=false")
 
     cmd.append(f"exp_name={exp_name}")
 

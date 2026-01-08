@@ -51,13 +51,6 @@ features:
   layer_4: false
   test_seglen_len_lim: 30
   test_hoplen_fenmu: 3
-  cache_dir: ${path.root_dir}/features_cache
-  version: v1
-  use_cache: true
-  force_recompute: false
-  format: npy
-  normalize: true
-  normalize_mode: per_sample
 
 # Training Parameters
 train_param:

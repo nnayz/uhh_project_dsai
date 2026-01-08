@@ -408,11 +408,7 @@ def main(cfg: DictConfig) -> None:
             return
 
         mf_logger.info("Creating DataModule...")
-        datamodule = DCASEFewShotDataModule(
-            cfg=cfg,
-            use_cache=cfg.features.use_cache,
-            force_recompute=cfg.features.force_recompute,
-        )
+        datamodule = DCASEFewShotDataModule(cfg=cfg)
 
         mf_logger.info("Preparing data...")
         datamodule.prepare_data()

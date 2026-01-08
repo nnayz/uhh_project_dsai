@@ -31,8 +31,6 @@ class DCASEFewShotDataModule(L.LightningDataModule):
     def __init__(
         self,
         cfg,
-        use_cache: Optional[bool] = None,
-        force_recompute: bool = False,
     ) -> None:
         super().__init__()
         self.cfg = cfg
@@ -40,8 +38,6 @@ class DCASEFewShotDataModule(L.LightningDataModule):
         self.eval_param = cfg.eval_param
         self.path = cfg.path
         self.features = cfg.features
-        self.use_cache = use_cache
-        self.force_recompute = force_recompute
 
         self.data_train: Optional[Dataset] = None
         self.data_val: Optional[Dataset] = None
@@ -148,12 +144,6 @@ class DCASEFewShotDataModule(L.LightningDataModule):
         )
 
 
-def create_datamodule(
-    cfg, use_cache: Optional[bool] = None, force_recompute: bool = False
-):
+def create_datamodule(cfg):
     """Factory for creating the sequence-based datamodule."""
-    return DCASEFewShotDataModule(
-        cfg=cfg,
-        use_cache=use_cache,
-        force_recompute=force_recompute,
-    )
+    return DCASEFewShotDataModule(cfg=cfg)

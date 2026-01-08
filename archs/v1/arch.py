@@ -31,47 +31,40 @@ def get_activation(name: str) -> nn.Module:
 
 
 class ConvBlock(nn.Module):
-    """Single convolutional block with BatchNorm, activation, and pooling."""
+    """Conv block matching the reference ProtoNet encoder."""
 
     def __init__(
         self,
         in_channels: int,
         out_channels: int,
-        kernel_size: int = 3,
-        padding: int = 1,
-        pool_size: int = 2,
-        activation: str = "leaky_relu",
         with_bias: bool = False,
-        dropout: float = 0.0,
     ) -> None:
         super().__init__()
         self.conv = nn.Conv2d(
             in_channels,
             out_channels,
-            kernel_size=kernel_size,
-            padding=padding,
+            kernel_size=3,
+            padding=1,
             bias=with_bias,
         )
         self.bn = nn.BatchNorm2d(out_channels)
-        self.activation = get_activation(activation)
-        self.pool = nn.MaxPool2d(kernel_size=pool_size)
-        self.dropout = nn.Dropout2d(dropout) if dropout > 0 else nn.Identity()
+        self.activation = nn.ReLU()
+        self.pool = nn.MaxPool2d(2)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv(x)
         x = self.bn(x)
         x = self.activation(x)
         x = self.pool(x)
-        x = self.dropout(x)
         return x
 
 
 class Conv4Encoder(nn.Module):
     """
-    4-block CNN encoder for log-mel spectrograms (baseline v1 architecture).
+    4-block CNN encoder matching the reference ProtoNet model.
 
     Input: (B, 1, n_mels, T)
-    Output: (B, emb_dim)
+    Output: (B, D) flattened conv features
     """
 
     def __init__(
@@ -79,9 +72,7 @@ class Conv4Encoder(nn.Module):
         in_channels: int = 1,
         emb_dim: int = 2048,
         conv_channels: List[int] = None,
-        activation: str = "leaky_relu",
         with_bias: bool = False,
-        drop_rate: float = 0.1,
         time_max_pool_dim: int = 4,
     ) -> None:
         super().__init__()
@@ -91,34 +82,25 @@ class Conv4Encoder(nn.Module):
 
         self.conv_blocks = nn.ModuleList()
 
-        # Build conv blocks
         in_ch = in_channels
-        for i, out_ch in enumerate(conv_channels):
+        for out_ch in conv_channels:
             self.conv_blocks.append(
                 ConvBlock(
                     in_channels=in_ch,
                     out_channels=out_ch,
-                    activation=activation,
                     with_bias=with_bias,
-                    dropout=drop_rate if i > 0 else 0.0,  # No dropout on first layer
                 )
             )
             in_ch = out_ch
-
-        self.global_pool = nn.AdaptiveAvgPool2d((1, time_max_pool_dim))
+        self.final_pool = nn.MaxPool2d(2)
         self.flatten = nn.Flatten()
-        self.fc = nn.Linear(conv_channels[-1] * time_max_pool_dim, emb_dim)
-        self.dropout = nn.Dropout(drop_rate)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         for block in self.conv_blocks:
             x = block(x)
 
-        x = self.global_pool(x)
+        x = self.final_pool(x)
         x = self.flatten(x)
-        x = self.dropout(x)
-        x = self.fc(x)
-        x = F.normalize(x, p=2, dim=-1)
         return x
 
 
