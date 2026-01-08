@@ -24,14 +24,18 @@ def make_dcase_event_dataset(
     Raises:
         ValueError: If no annotation files are provided.
     """
-    ann_paths = annotations if annotations is not None else [Path(p) for p in cfg.annotations.train_files]
-    
+    ann_paths = (
+        annotations
+        if annotations is not None
+        else [Path(p) for p in cfg.annotations.train_files]
+    )
+
     if not ann_paths:
         raise ValueError(
             "No annotation files provided. "
             "Either pass 'annotations' argument or set cfg.annotations.train_files."
         )
-    
+
     return DCASEEventDataset(
         annotations=ann_paths,
         cfg=cfg,
@@ -64,13 +68,13 @@ def make_fewshot_dataloaders(
         ValueError: If annotations.train_files is empty.
     """
     train_files = [Path(p) for p in cfg.annotations.train_files]
-    
+
     if not train_files:
         raise ValueError(
             "cfg.annotations.train_files is empty. "
             "Training requires at least one annotation file path."
         )
-    
+
     # Base flat dataset for training
     train_base = DCASEEventDataset(
         annotations=train_files,
@@ -89,8 +93,12 @@ def make_fewshot_dataloaders(
     )
 
     val_loader = None
-    val_files = [Path(p) for p in cfg.annotations.val_files] if cfg.annotations.val_files else []
-    
+    val_files = (
+        [Path(p) for p in cfg.annotations.val_files]
+        if cfg.annotations.val_files
+        else []
+    )
+
     if val_files:
         val_base = DCASEEventDataset(
             annotations=val_files,

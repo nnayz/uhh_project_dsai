@@ -12,7 +12,6 @@ warnings.filterwarnings("ignore")
 
 
 def class_to_int(label_array, class_set):
-
     """Convert class label to integer.
     Args:
     -label_array: label array
@@ -27,7 +26,6 @@ def class_to_int(label_array, class_set):
 
 
 def balance_class_distribution(X, Y):
-
     """Class balancing through Random oversampling
     Args:
     -X: Feature
@@ -54,7 +52,6 @@ def balance_class_distribution(X, Y):
 
 
 def norm_params(X):
-
     """Normalize features
     Args:
     - X : Features
@@ -95,7 +92,6 @@ class Datagen(object):
         return (X - self.mean) / self.std
 
     def generate_train(self):
-
         """Returns normalized training and validation features.
         Args:
         -conf - Configuration object
@@ -128,7 +124,6 @@ class Datagen_test(Datagen):
         self.hop_seg = 17  # TODO dynamic segment length
 
     def generate_eval(self):
-
         """Returns normalizedtest features.
 
         Output:

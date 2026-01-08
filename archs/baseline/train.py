@@ -33,20 +33,24 @@ def main():
     print(f"[INFO] Found {len(val_ann)} validation CSVs")
 
     if not train_ann:
-        raise RuntimeError("No training CSVs found under Training_Set – check the path.")
+        raise RuntimeError(
+            "No training CSVs found under Training_Set – check the path."
+        )
     if not val_ann:
-        raise RuntimeError("No validation CSVs found under Validation_Set_DSAI_2025_2026 – check the path.")
+        raise RuntimeError(
+            "No validation CSVs found under Validation_Set_DSAI_2025_2026 – check the path."
+        )
 
     # Build few-shot dataloaders
     train_loader, val_loader = make_fewshot_dataloaders(
-        train_root=train_root,           # root_dir for training audio/CSV
+        train_root=train_root,  # root_dir for training audio/CSV
         train_annotation_files=train_ann,
-        val_root=val_root,               # root_dir for validation audio/CSV
+        val_root=val_root,  # root_dir for validation audio/CSV
         val_annotation_files=val_ann,
-        k_way=2,                         # 5-way classification per episode
-        n_shot=5,                        # 5-shot support examples per class
-        n_query=3,                      # 10 query examples per class
-        batch_size=1,                    # 1 episode per batch
+        k_way=2,  # 5-way classification per episode
+        n_shot=5,  # 5-shot support examples per class
+        n_query=3,  # 10 query examples per class
+        batch_size=1,  # 1 episode per batch
         num_workers=0,
     )
 
@@ -70,8 +74,8 @@ def main():
             # because batch_size=1, first dim is "episode"
             support_x = support_x.squeeze(0)  # (Ns, 1, n_mels, T)
             support_y = support_y.squeeze(0)  # (Ns,)
-            query_x = query_x.squeeze(0)      # (Nq, 1, n_mels, T)
-            query_y = query_y.squeeze(0)      # (Nq,)
+            query_x = query_x.squeeze(0)  # (Nq, 1, n_mels, T)
+            query_y = query_y.squeeze(0)  # (Nq,)
 
             optimizer.zero_grad()
             loss, logits = model(support_x, support_y, query_x, query_y)

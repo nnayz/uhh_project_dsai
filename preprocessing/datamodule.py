@@ -148,7 +148,9 @@ class DCASEFewShotDataModule(L.LightningDataModule):
         )
 
 
-def create_datamodule(cfg, use_cache: Optional[bool] = None, force_recompute: bool = False):
+def create_datamodule(
+    cfg, use_cache: Optional[bool] = None, force_recompute: bool = False
+):
     """Factory for creating the sequence-based datamodule."""
     return DCASEFewShotDataModule(
         cfg=cfg,

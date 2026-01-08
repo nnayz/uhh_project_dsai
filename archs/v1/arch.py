@@ -24,13 +24,15 @@ def get_activation(name: str) -> nn.Module:
         "gelu": nn.GELU(),
     }
     if name not in activations:
-        raise ValueError(f"Unknown activation: {name}. Available: {list(activations.keys())}")
+        raise ValueError(
+            f"Unknown activation: {name}. Available: {list(activations.keys())}"
+        )
     return activations[name]
 
 
 class ConvBlock(nn.Module):
     """Single convolutional block with BatchNorm, activation, and pooling."""
-    
+
     def __init__(
         self,
         in_channels: int,
@@ -54,7 +56,7 @@ class ConvBlock(nn.Module):
         self.activation = get_activation(activation)
         self.pool = nn.MaxPool2d(kernel_size=pool_size)
         self.dropout = nn.Dropout2d(dropout) if dropout > 0 else nn.Identity()
-    
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.conv(x)
         x = self.bn(x)
@@ -71,7 +73,7 @@ class Conv4Encoder(nn.Module):
     Input: (B, 1, n_mels, T)
     Output: (B, emb_dim)
     """
-    
+
     def __init__(
         self,
         in_channels: int = 1,
@@ -83,33 +85,35 @@ class Conv4Encoder(nn.Module):
         time_max_pool_dim: int = 4,
     ) -> None:
         super().__init__()
-        
+
         if conv_channels is None:
             conv_channels = [64, 64, 64, 64]
-        
+
         self.conv_blocks = nn.ModuleList()
-        
+
         # Build conv blocks
         in_ch = in_channels
         for i, out_ch in enumerate(conv_channels):
-            self.conv_blocks.append(ConvBlock(
-                in_channels=in_ch,
-                out_channels=out_ch,
-                activation=activation,
-                with_bias=with_bias,
-                dropout=drop_rate if i > 0 else 0.0,  # No dropout on first layer
-            ))
+            self.conv_blocks.append(
+                ConvBlock(
+                    in_channels=in_ch,
+                    out_channels=out_ch,
+                    activation=activation,
+                    with_bias=with_bias,
+                    dropout=drop_rate if i > 0 else 0.0,  # No dropout on first layer
+                )
+            )
             in_ch = out_ch
-        
+
         self.global_pool = nn.AdaptiveAvgPool2d((1, time_max_pool_dim))
         self.flatten = nn.Flatten()
         self.fc = nn.Linear(conv_channels[-1] * time_max_pool_dim, emb_dim)
         self.dropout = nn.Dropout(drop_rate)
-    
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         for block in self.conv_blocks:
             x = block(x)
-        
+
         x = self.global_pool(x)
         x = self.flatten(x)
         x = self.dropout(x)
@@ -141,10 +145,10 @@ class ProtoNet(nn.Module):
         time_max_pool_dim: int = 4,
     ) -> None:
         super().__init__()
-        
+
         if isinstance(distance, str):
             distance = Distance(distance.lower())
-        
+
         self.encoder = Conv4Encoder(
             in_channels=in_channels,
             emb_dim=emb_dim,
@@ -186,7 +190,7 @@ class ProtoNet(nn.Module):
         Args:
             embeddings: (N, D)
             labels: (N,)
-            
+
         Returns:
             prototypes: (Nc, D)
             class_ids: (Nc,)
@@ -200,11 +204,11 @@ class ProtoNet(nn.Module):
         return prototypes, class_ids
 
     def forward(
-        self, 
+        self,
         support_x: torch.Tensor,
         support_y: torch.Tensor,
         query_x: torch.Tensor,
-        query_y: torch.Tensor
+        query_y: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Run one few-shot episode.
@@ -233,9 +237,7 @@ class ProtoNet(nn.Module):
 
         label_map = {int(c.item()): i for i, c in enumerate(class_ids)}
         mapped_query_y = torch.tensor(
-            [label_map[int(l.item())] for l in query_y],
-            dtype=torch.long,
-            device=device
+            [label_map[int(l.item())] for l in query_y], dtype=torch.long, device=device
         )
 
         loss = F.cross_entropy(logits, mapped_query_y)

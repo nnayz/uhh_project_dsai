@@ -263,7 +263,6 @@ class PrototypeDynamicArrayDataSet(Dataset):
         return int(np.floor(t * fps))
 
     def get_class2int(self):
-
         """Convert class label to integer
         Args:
         -label_array: label array

@@ -16,15 +16,15 @@ def _is_virtual_env(path: Path) -> bool:
     path_str = str(path)
     # Common virtual environment directory patterns
     venv_patterns = [
-        'g5env',
-        '4prasad_env',
-        '_env',  # e.g., g5env, 4prasad_env
-        '/venv/',
-        '/.venv/',
-        '/env/',
-        '/.env/',
-        '/bin/python',  # venv structure
-        '/Scripts/python',  # Windows venv structure
+        "g5env",
+        "4prasad_env",
+        "_env",  # e.g., g5env, 4prasad_env
+        "/venv/",
+        "/.venv/",
+        "/env/",
+        "/.env/",
+        "/bin/python",  # venv structure
+        "/Scripts/python",  # Windows venv structure
     ]
     return any(pattern in path_str for pattern in venv_patterns)
 

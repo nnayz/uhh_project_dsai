@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 class CachedFeature:
     """
     Represents a cached feature file on disk.
-    
+
     Attributes:
         npy_path: Path to the .npy feature file.
         class_id: Integer class identifier.
@@ -41,6 +41,7 @@ class CachedFeature:
         end_time: End time of segment in original audio.
         feature_shape: Shape of the feature tensor.
     """
+
     npy_path: Path
     class_id: int
     class_name: str
@@ -54,9 +55,10 @@ class CachedFeature:
 class FeatureManifest:
     """
     Manifest file containing metadata about cached features.
-    
+
     Stored as JSON alongside the feature files for reproducibility.
     """
+
     version: str
     config_hash: str
     split: str
@@ -71,12 +73,12 @@ class FeatureManifest:
 def compute_config_hash(cfg: DictConfig) -> str:
     """
     Compute a hash of the feature extraction configuration.
-    
+
     This ensures cached features are invalidated when config changes.
-    
+
     Args:
         cfg: Hydra DictConfig with features settings.
-        
+
     Returns:
         A hex string hash of the relevant config values.
     """
@@ -103,13 +105,13 @@ def compute_config_hash(cfg: DictConfig) -> str:
             "normalize": getattr(cfg.features, "normalize", True),
             "normalize_mode": getattr(cfg.features, "normalize_mode", "per_sample"),
         }
-    
+
     # Add min_duration if available
     if hasattr(cfg, "annotations") and hasattr(cfg.annotations, "min_duration"):
         relevant_keys["min_duration"] = cfg.annotations.min_duration
     elif hasattr(cfg, "train_param") and hasattr(cfg.train_param, "seg_len"):
         relevant_keys["min_duration"] = cfg.train_param.seg_len
-    
+
     config_str = json.dumps(relevant_keys, sort_keys=True)
     return hashlib.md5(config_str.encode()).hexdigest()[:12]
 
@@ -117,13 +119,13 @@ def compute_config_hash(cfg: DictConfig) -> str:
 def get_cache_dir(cfg: DictConfig, split: str) -> Path:
     """
     Get the cache directory for a specific split.
-    
+
     Structure: {cache_dir}/{exp_name}/{split}/
-    
+
     Args:
         cfg: Hydra DictConfig.
         split: Dataset split ('train', 'val', 'test').
-        
+
     Returns:
         Path to the cache directory.
     """
@@ -140,20 +142,20 @@ def get_manifest_path(cache_dir: Path) -> Path:
 def load_manifest(cache_dir: Path) -> Optional[FeatureManifest]:
     """
     Load the manifest file from a cache directory.
-    
+
     Args:
         cache_dir: Path to the cache directory.
-        
+
     Returns:
         FeatureManifest if exists, None otherwise.
     """
     manifest_path = get_manifest_path(cache_dir)
     if not manifest_path.exists():
         return None
-    
+
     with open(manifest_path, "r") as f:
         data = json.load(f)
-    
+
     return FeatureManifest(
         version=data["version"],
         config_hash=data["config_hash"],
@@ -170,7 +172,7 @@ def load_manifest(cache_dir: Path) -> Optional[FeatureManifest]:
 def save_manifest(manifest: FeatureManifest, cache_dir: Path) -> None:
     """
     Save the manifest file to a cache directory.
-    
+
     Args:
         manifest: FeatureManifest to save.
         cache_dir: Path to the cache directory.
@@ -199,12 +201,12 @@ def normalize_features(
 ) -> np.ndarray:
     """
     Normalize feature tensor.
-    
+
     Args:
         features: Feature array of shape (n_mels, time_frames).
         mode: 'per_sample' or 'global'.
         stats: For 'global' mode, dict with 'mean' and 'std' arrays.
-        
+
     Returns:
         Normalized feature array.
     """
@@ -226,20 +228,20 @@ def extract_and_cache_features(
 ) -> Tuple[Path, FeatureManifest]:
     """
     Extract features from audio files and cache them as .npy files.
-    
+
     This is the main entry point for Phase 1 (offline feature extraction).
-    
+
     Args:
         cfg: Hydra DictConfig with all settings.
         split: Dataset split name ('train', 'val', 'test').
         annotation_paths: List of paths to annotation CSV files.
         force_recompute: If True, re-extract even if cache exists.
-        
+
     Returns:
         Tuple of (cache_dir, manifest).
     """
     cache_dir = get_cache_dir(cfg, split)
-    
+
     # Check if valid cache exists
     if not force_recompute and cache_dir.exists():
         manifest = load_manifest(cache_dir)
@@ -249,11 +251,11 @@ def extract_and_cache_features(
                 f"({manifest.num_samples} samples)"
             )
             return cache_dir, manifest
-    
+
     # Create cache directory
     cache_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Extracting features for {split} to {cache_dir}")
-    
+
     # Load annotations
     annotation_service = AnnotationService(
         positive_label=cfg.annotations.positive_label,
@@ -264,23 +266,23 @@ def extract_and_cache_features(
     )
     class_to_idx = annotation_service.get_class_to_idx()
     idx_to_class = annotation_service.get_idx_to_class()
-    
+
     if not examples:
         raise RuntimeError(
             f"No positive events found in annotations for {split}. "
             f"Check CSV format and positive_label='{cfg.annotations.positive_label}'."
         )
-    
+
     logger.info(f"Found {len(examples)} segments across {len(class_to_idx)} classes")
-    
+
     # Create class subdirectories
     for class_name in class_to_idx.keys():
         (cache_dir / class_name).mkdir(parents=True, exist_ok=True)
-    
+
     # Extract and save features
     samples_metadata = []
     feature_shape = None
-    
+
     for idx, example in enumerate(tqdm(examples, desc=f"Extracting {split} features")):
         # Extract log-mel spectrogram
         try:
@@ -296,40 +298,44 @@ def extract_and_cache_features(
                 f"[{example.start_time:.2f}-{example.end_time:.2f}]: {e}"
             )
             continue
-        
+
         # Normalize if configured
         if cfg.features.normalize:
             logmel = normalize_features(
                 logmel,
                 mode=cfg.features.normalize_mode,
             )
-        
+
         # Add channel dimension: (n_mels, T) -> (1, n_mels, T)
         feature_tensor = logmel[np.newaxis, ...]
-        
+
         if feature_shape is None:
             feature_shape = (feature_tensor.shape[0], feature_tensor.shape[1])
-        
+
         # Generate unique filename
         class_name = idx_to_class[example.class_id]
         wav_stem = Path(example.wav_path).stem
-        feature_filename = f"{wav_stem}_{example.start_time:.3f}_{example.end_time:.3f}.npy"
+        feature_filename = (
+            f"{wav_stem}_{example.start_time:.3f}_{example.end_time:.3f}.npy"
+        )
         npy_path = cache_dir / class_name / feature_filename
-        
+
         # Save feature as .npy
         np.save(npy_path, feature_tensor.astype(np.float32))
-        
+
         # Record metadata
-        samples_metadata.append({
-            "npy_path": str(npy_path.relative_to(cache_dir)),
-            "class_id": example.class_id,
-            "class_name": class_name,
-            "original_wav": str(example.wav_path),
-            "start_time": example.start_time,
-            "end_time": example.end_time,
-            "shape": list(feature_tensor.shape),
-        })
-    
+        samples_metadata.append(
+            {
+                "npy_path": str(npy_path.relative_to(cache_dir)),
+                "class_id": example.class_id,
+                "class_name": class_name,
+                "original_wav": str(example.wav_path),
+                "start_time": example.start_time,
+                "end_time": example.end_time,
+                "shape": list(feature_tensor.shape),
+            }
+        )
+
     # Create and save manifest
     manifest = FeatureManifest(
         version=cfg.features.version,
@@ -343,12 +349,12 @@ def extract_and_cache_features(
         samples=samples_metadata,
     )
     save_manifest(manifest, cache_dir)
-    
+
     logger.info(
         f"Cached {len(samples_metadata)} features for {split} "
         f"({len(class_to_idx)} classes)"
     )
-    
+
     return cache_dir, manifest
 
 
@@ -358,22 +364,22 @@ def extract_all_splits(
 ) -> Dict[str, Tuple[Path, FeatureManifest]]:
     """
     Extract and cache features for all configured splits.
-    
+
     Args:
         cfg: Hydra DictConfig.
         force_recompute: If True, re-extract even if cache exists.
-        
+
     Returns:
         Dict mapping split names to (cache_dir, manifest) tuples.
     """
     results = {}
-    
+
     splits = [
         ("train", cfg.annotations.train_files),
         ("val", cfg.annotations.val_files),
         ("test", cfg.annotations.test_files),
     ]
-    
+
     for split_name, annotation_paths in splits:
         if annotation_paths:
             cache_dir, manifest = extract_and_cache_features(
@@ -386,60 +392,60 @@ def extract_all_splits(
             logger.info(f"Completed {split_name}: {manifest.num_samples} samples")
         else:
             logger.info(f"Skipping {split_name}: no annotation files configured")
-    
+
     return results
 
 
 def verify_cache_integrity(cache_dir: Path) -> bool:
     """
     Verify that all files in the manifest exist.
-    
+
     Args:
         cache_dir: Path to the cache directory.
-        
+
     Returns:
         True if all files exist, False otherwise.
     """
     manifest = load_manifest(cache_dir)
     if manifest is None:
         return False
-    
+
     for sample in manifest.samples:
         npy_path = cache_dir / sample["npy_path"]
         if not npy_path.exists():
             logger.warning(f"Missing file: {npy_path}")
             return False
-    
+
     return True
 
 
 def get_cache_stats(cache_dir: Path) -> Dict:
     """
     Get statistics about cached features.
-    
+
     Args:
         cache_dir: Path to the cache directory.
-        
+
     Returns:
         Dict with cache statistics.
     """
     manifest = load_manifest(cache_dir)
     if manifest is None:
         return {"error": "No manifest found"}
-    
+
     # Calculate total size
     total_size = 0
     for sample in manifest.samples:
         npy_path = cache_dir / sample["npy_path"]
         if npy_path.exists():
             total_size += npy_path.stat().st_size
-    
+
     # Count samples per class
     class_counts = {}
     for sample in manifest.samples:
         class_name = sample["class_name"]
         class_counts[class_name] = class_counts.get(class_name, 0) + 1
-    
+
     return {
         "version": manifest.version,
         "config_hash": manifest.config_hash,
@@ -451,4 +457,3 @@ def get_cache_stats(cache_dir: Path) -> Dict:
         "feature_shape": manifest.feature_shape,
         "normalization": manifest.normalization,
     }
-

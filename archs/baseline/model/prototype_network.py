@@ -22,7 +22,6 @@ class ConvEncoder(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2),
-
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
@@ -37,7 +36,7 @@ class ConvEncoder(nn.Module):
         x = self.conv_block(x)
         x = self.global_pool(x)  # (B, 128, 1, 1)
         x = x.view(x.size(0), -1)  # (B, 128)
-        x = self.fc(x)             # (B, emb_dim)
+        x = self.fc(x)  # (B, emb_dim)
         x = F.normalize(x, p=2, dim=-1)  # L2-normalize
         return x
 
@@ -134,7 +133,7 @@ class ProtoNet(nn.Module):
         query_y = query_y.to(device)
 
         emb_support = self.encoder(support_x)  # (Ns, D)
-        emb_query = self.encoder(query_x)      # (Nq, D)
+        emb_query = self.encoder(query_x)  # (Nq, D)
 
         prototypes, class_ids = self._compute_prototypes(emb_support, support_y)
 

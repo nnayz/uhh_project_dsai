@@ -18,6 +18,7 @@ from .preprocess import extract_logmel_segment
 @dataclass
 class SegmentExample:
     """Represents a single labeled event segment in a file."""
+
     wav_path: Path
     start_time: float
     end_time: float
@@ -330,7 +331,7 @@ class FewShotEpisodeDataset(Dataset):
         query_x_padded = [crop_pad(t, T_max) for t in query_x_list]
 
         support_x = torch.stack(support_x_padded, dim=0)  # (k*n_shot, 1, n_mels, T_max)
-        query_x = torch.stack(query_x_padded, dim=0)      # (k*n_query, 1, n_mels, T_max)
+        query_x = torch.stack(query_x_padded, dim=0)  # (k*n_query, 1, n_mels, T_max)
         support_y = torch.tensor(support_y_list, dtype=torch.long)
         query_y = torch.tensor(query_y_list, dtype=torch.long)
 

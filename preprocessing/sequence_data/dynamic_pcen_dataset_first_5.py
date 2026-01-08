@@ -16,6 +16,7 @@ from tqdm import tqdm
 from preprocessing.sequence_data.Datagenerator import Datagen_test
 from preprocessing.sequence_data.pcen import Feature_Extractor
 
+
 # logmel.npy: log mel spectrogram
 # .npy: PCEN spectrogram
 class PrototypeDynamicArrayDataSetWithEval(Dataset):
@@ -383,13 +384,15 @@ class PrototypeDynamicArrayDataSetWithEval(Dataset):
                 for file in glob(os.path.join(path_dir, extension))
             ],
             eval_csv,
-            [
-                file
-                for path_dir, _, _ in os.walk(self.path.extra_train_dir)
-                for file in glob(os.path.join(path_dir, extension))
-            ]
-            if (self.path.extra_train_dir is not None)
-            else [],
+            (
+                [
+                    file
+                    for path_dir, _, _ in os.walk(self.path.extra_train_dir)
+                    for file in glob(os.path.join(path_dir, extension))
+                ]
+                if (self.path.extra_train_dir is not None)
+                else []
+            ),
         )
 
     # def get_glob_cls_name(self, file, key="Training_Set"):
@@ -436,7 +439,6 @@ class PrototypeDynamicArrayDataSetWithEval(Dataset):
         return int(np.floor(t * fps))
 
     def get_class2int(self):
-
         """Convert class label to integer
         Args:
         -label_array: label array
