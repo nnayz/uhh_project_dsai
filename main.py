@@ -181,6 +181,65 @@ def cache_info(exp_name, split):
             logger.warning(f"{split_name.upper()}: Not cached (run extract-features first)")
 
 
+@cli.command("export-features", help="Export feature files next to audio")
+@click.option(
+    "--exp-name", "-e",
+    type=str,
+    required=False,
+    help="Experiment name override (optional)"
+)
+@click.option(
+    "--split", "-s",
+    type=click.Choice(["train", "val", "test", "all"]),
+    default="all",
+    help="Which split to export"
+)
+@click.option(
+    "--force", "-f",
+    is_flag=True,
+    default=False,
+    help="Overwrite existing feature files"
+)
+def export_features(exp_name, split, force):
+    """Export per-audio feature .npy files for training."""
+    overrides = [f"+exp_name={exp_name}"] if exp_name else []
+    cfg = load_config(overrides)
+    from preprocessing.feature_export import export_features
+
+    splits = ["train", "val", "test"] if split == "all" else [split]
+    written = export_features(cfg, splits=splits, force=force)
+    logger.info(f"Exported {written} feature files for splits: {splits}")
+
+
+@cli.command("check-features", help="Validate feature files exist")
+@click.option(
+    "--exp-name", "-e",
+    type=str,
+    required=False,
+    help="Experiment name override (optional)"
+)
+@click.option(
+    "--split", "-s",
+    type=click.Choice(["train", "val", "test", "all"]),
+    default="all",
+    help="Which split to validate"
+)
+def check_features(exp_name, split):
+    """Check for missing feature files."""
+    overrides = [f"+exp_name={exp_name}"] if exp_name else []
+    cfg = load_config(overrides)
+    from preprocessing.feature_export import validate_features
+
+    splits = ["train", "val", "test"] if split == "all" else [split]
+    missing = validate_features(cfg, splits=splits)
+    if not missing:
+        logger.info(f"All feature files present for splits: {splits}")
+        return
+    logger.warning(f"Missing {len(missing)} feature files. Example:")
+    for path in missing[:10]:
+        logger.warning(f"  {path}")
+
+
 @cli.command("verify-cache", help="Verify integrity of cached features")
 @click.option(
     "--exp-name", "-e",

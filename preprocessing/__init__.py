@@ -17,6 +17,7 @@ from .cached_dataset import (
     create_cached_episode_dataset,
 )
 from .datamodule import DCASEFewShotDataModule, create_datamodule
+from .feature_export import export_features, validate_features
 
 __all__ = [
     # Annotation service
@@ -46,5 +47,7 @@ __all__ = [
     # Lightning DataModule
     "DCASEFewShotDataModule",
     "create_datamodule",
+    # Task 5 feature helpers
+    "export_features",
+    "validate_features",
 ]
-

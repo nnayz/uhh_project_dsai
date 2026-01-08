@@ -2,18 +2,12 @@
 Generic Lightning-powered training entry point using Hydra configuration.
 
 This trainer is architecture-agnostic and uses the DataModule for data handling.
-It supports the two-phase baseline v1 workflow:
-
-    Phase 1 (offline): g5 extract-features
-    Phase 2 (online):  python archs/train.py arch=v1
-
-The trainer automatically uses cached features if available (cfg.features.use_cache=true).
+It expects precomputed feature arrays when using the task-specific datamodule.
 
 Usage:
     python archs/train.py
     python archs/train.py arch=v1
     python archs/train.py arch=v1 arch.training.learning_rate=0.0005
-    python archs/train.py features.use_cache=false
 """
 
 from __future__ import annotations
@@ -94,6 +88,8 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
             scheduler_step_size=cfg.arch.training.scheduler_step_size,
             scheduler_type=cfg.arch.training.scheduler,
             num_classes=cfg.arch.episodes.n_way,
+            n_shot=cfg.train_param.n_shot,
+            negative_train_contrast=cfg.train_param.negative_train_contrast,
         )
     elif arch_name == "v2":
         model = module_class(
@@ -109,6 +105,8 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
             channels=list(cfg.arch.model.channels),
             dropout=cfg.arch.model.dropout,
             num_classes=cfg.arch.episodes.n_way,
+            n_shot=cfg.train_param.n_shot,
+            negative_train_contrast=cfg.train_param.negative_train_contrast,
             # Augmentation parameters
             use_augmentation=cfg.arch.augmentation.use_augmentation,
             use_spec_augment=cfg.arch.augmentation.use_spec_augment,
@@ -254,18 +252,6 @@ def build_pl_loggers(cfg: DictConfig) -> List:
             
     except Exception as e:
         mf_logger.warning(f"Failed to create MLflow logger: {e}")
-        
-        # Fallback to TensorBoard
-        try:
-            from lightning.pytorch.loggers import TensorBoardLogger
-            tb_logger = TensorBoardLogger(
-                save_dir=str(log_dir),
-                name=cfg.arch.name,
-            )
-            loggers.append(tb_logger)
-            mf_logger.info("Created TensorBoard logger as fallback")
-        except Exception as e2:
-            mf_logger.warning(f"Failed to create TensorBoard logger: {e2}")
     
     return loggers if loggers else None
 
@@ -372,7 +358,6 @@ def main(cfg: DictConfig) -> None:
         mf_logger.info(f"Experiment: {cfg.name} / {cfg.exp_name}")
         mf_logger.info(f"Architecture: {cfg.arch.name}")
         mf_logger.info(f"Accelerator: {accelerator}")
-        mf_logger.info(f"Feature caching: {cfg.features.use_cache}")
         mf_logger.info(f"Epochs: {cfg.arch.training.max_epochs}")
         mf_logger.info(f"Learning rate: {cfg.arch.training.learning_rate}")
         mf_logger.info(f"Episodes per epoch: {cfg.arch.episodes.episodes_per_epoch}")
@@ -395,20 +380,9 @@ def main(cfg: DictConfig) -> None:
             force_recompute=cfg.features.force_recompute,
         )
         
-        mf_logger.info("Preparing data (extracting features if needed)...")
+        mf_logger.info("Preparing data...")
         datamodule.prepare_data()
         datamodule.setup("fit")
-        
-        cache_info = datamodule.get_cache_info()
-        mf_logger.info(f"Cache info: {cache_info}")
-        
-        # Log cache info
-        if "splits" in cache_info:
-            for split, info in cache_info["splits"].items():
-                mf_logger.log_params({
-                    f"data/{split}_samples": info.get("num_samples", 0),
-                    f"data/{split}_classes": info.get("num_classes", 0),
-                })
         
         mf_logger.info("Building model...")
         model = build_model(cfg)
