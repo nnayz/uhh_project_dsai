@@ -1,5 +1,0 @@
-- arch=v1
-- train=false
-- test=true
-- +exp_name=experiment_2
-- arch.training.load_weight_from=outputs/mlflow_experiments/experiment_2/checkpoints/last.ckpt
