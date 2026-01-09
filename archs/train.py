@@ -22,6 +22,7 @@ os.environ.setdefault("NUMBA_DISABLE_JIT", "1")
 
 import hydra
 import lightning as L
+from lightning import seed_everything
 import torch
 from hydra.utils import instantiate
 import omegaconf
@@ -29,6 +30,8 @@ from omegaconf import DictConfig, OmegaConf
 
 from preprocessing.datamodule import DCASEFewShotDataModule
 from utils.mlflow_logger import get_logger, reset_logger
+from utils.resolve_device import resolve_device
+
 
 # Get global MLflow logger
 mf_logger = get_logger()
@@ -36,31 +39,6 @@ mf_logger = get_logger()
 torch.use_deterministic_algorithms(True, warn_only=True)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
-
-
-def resolve_device(cfg: DictConfig) -> str:
-    """Resolve the accelerator from the runtime config."""
-    device = cfg.runtime.device
-
-    if device == "auto":
-        if torch.cuda.is_available():
-            return "cuda"
-        elif torch.backends.mps.is_available():
-            return "mps"
-        else:
-            return "cpu"
-    elif device == "cuda":
-        if not torch.cuda.is_available():
-            mf_logger.warning("CUDA requested but not available, falling back to CPU")
-            return "cpu"
-        return "cuda"
-    elif device == "mps":
-        if not torch.backends.mps.is_available():
-            mf_logger.warning("MPS requested but not available, falling back to CPU")
-            return "cpu"
-        return "mps"
-    else:
-        return device
 
 
 def get_lightning_module(arch_name: str) -> Type[L.LightningModule]:
@@ -347,7 +325,17 @@ def log_config_params(cfg: DictConfig):
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def main(cfg: DictConfig) -> None:
-    """Main training entry point."""
+    """
+    Main training entry point.
+    This function is the entry point for the training pipeline.
+    It initializes the MLflow logger, sets the seed, and builds the data module, model, and callbacks.
+    It then trains the model and logs the results to MLflow.
+    Finally, it runs the test evaluation if enabled.
+
+    Args:
+        cfg: The configuration object.
+    """
+    seed_everything(cfg.seed, workers=True)
     global mf_logger
 
     if cfg.ignore_warnings:
@@ -374,7 +362,7 @@ def main(cfg: DictConfig) -> None:
         if cfg.disable_cudnn:
             torch.backends.cudnn.enabled = False
 
-        accelerator = resolve_device(cfg)
+        accelerator = resolve_device(cfg.runtime.device)
 
         # Set tags
         mf_logger.set_tags(
