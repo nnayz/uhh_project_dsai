@@ -12,4 +12,3 @@ from .arch import ProtoNetV2
 from .lightning_module import ProtoNetV2LightningModule
 
 __all__ = ["ProtoNetV2", "ProtoNetV2LightningModule"]
-

@@ -8,7 +8,7 @@ from schemas import SegmentExample
 class AnnotationService:
     """
     Service for loading and parsing DCASE-style annotation files.
-    
+
     Handles:
       - multi-class CSVs with CLASS_x columns (POS/NEG/UNK)
       - single-class CSVs with a 'Q' column (POS/UNK)
@@ -32,17 +32,13 @@ class AnnotationService:
         self.class_to_idx: Dict[str, int] = {}
         self.examples: List[SegmentExample] = []
 
-    def _resolve_wav_path(
-        self,
-        audio_dir: Path,
-        wav_name: Union[str, Path]
-    ) -> Path:
+    def _resolve_wav_path(self, audio_dir: Path, wav_name: Union[str, Path]) -> Path:
         """
         Build a path to the audio file.
 
         Strategy:
         1. If there is a .wav with the same stem (e.g. 'a1.wav'), use that.
-        2. Otherwise, use the exact name from the CSV. 
+        2. Otherwise, use the exact name from the CSV.
         """
         wav_name = str(wav_name)
         p = Path(wav_name)
@@ -52,7 +48,7 @@ class AnnotationService:
         if alt_wav.is_file():
             return alt_wav
 
-        # Fall back to the name as given 
+        # Fall back to the name as given
         candidate = audio_dir / wav_name
         return candidate
 
@@ -122,23 +118,31 @@ class AnnotationService:
 
         # Case 1: explicit single-class with 'Q' (POS/UNK), no explicit class_name
         if "Q" in df.columns and self.class_name is None:
-            self._parse_single_class_q(df, annotation_path, audio_dir, audio_col, start_col, end_col)
+            self._parse_single_class_q(
+                df, annotation_path, audio_dir, audio_col, start_col, end_col
+            )
             return
 
         # Case 2: single-class but class_name given explicitly
         if self.class_name is not None and "Q" in df.columns:
-            self._parse_explicit_class_name(df, audio_dir, audio_col, start_col, end_col)
+            self._parse_explicit_class_name(
+                df, audio_dir, audio_col, start_col, end_col
+            )
             return
 
         # Case 3: multi-class with CLASS_x columns (original DCASE style)
         class_cols = [c for c in df.columns if c.startswith("CLASS_")]
         if class_cols:
-            self._parse_multi_class(df, class_cols, audio_dir, audio_col, start_col, end_col)
+            self._parse_multi_class(
+                df, class_cols, audio_dir, audio_col, start_col, end_col
+            )
             return
 
         # Case 4 (fallback): no 'Q' and no 'CLASS_*'
         # Treat ALL rows as positive events for a single class per CSV.
-        self._parse_fallback(df, annotation_path, audio_dir, audio_col, start_col, end_col)
+        self._parse_fallback(
+            df, annotation_path, audio_dir, audio_col, start_col, end_col
+        )
 
     def _parse_single_class_q(
         self,
@@ -185,7 +189,7 @@ class AnnotationService:
         end_col: str,
     ) -> None:
         """
-        
+
         Parse CSV with 'Q' column, using explicit class_name.
 
         Args:
@@ -194,7 +198,7 @@ class AnnotationService:
             audio_col: The column containing the audio file names.
             start_col: The column containing the start time.
             end_col: The column containing the end time.
-            
+
         Returns:
             None
         """

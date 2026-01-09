@@ -1,9 +1,11 @@
 """Encoder module placeholder."""
+
 import torch.nn as nn
 
 
 class Encoder(nn.Module):
     """Simple convolutional encoder placeholder."""
+
     def __init__(self, in_channels=1, out_dim=64):
         super().__init__()
         self.net = nn.Sequential(

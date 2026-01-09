@@ -19,8 +19,8 @@ source .venv/bin/activate  # On Linux/Mac
 ## Quick Start
 
 ```bash
-# 1. Extract features (run once)
-g5 extract-features
+# 1. Export full-audio features (run once for sequence sampling)
+g5 export-features
 
 # 2. Train the model (exp-name is required)
 g5 train v1 --exp-name my_experiment
@@ -35,9 +35,8 @@ g5 test outputs/mlflow_experiments/my_experiment/checkpoints/last.ckpt
 |---------|-------------|
 | `train` | Train model with PyTorch Lightning |
 | `test` | Test a trained model checkpoint |
-| `extract-features` | Extract and cache audio features |
-| `cache-info` | Show cached feature statistics |
-| `verify-cache` | Verify cache integrity |
+| `export-features` | Export per-audio feature arrays next to `.wav` files |
+| `check-features` | Validate per-audio feature arrays exist |
 | `list-data-dir` | List data directories |
 | `list-all-audio-files` | List all audio files |
 
@@ -68,7 +67,6 @@ g5 train [ARCH] [OPTIONS] [OVERRIDES]
 
 | Option | Description |
 |--------|-------------|
-| `--no-cache` | Disable feature caching (extract on-the-fly) |
 | `--exp-name`, `-e` | Experiment name for this run (required) |
 
 ### Examples
@@ -87,9 +85,6 @@ g5 train v1 --exp-name my_experiment \
     arch.training.learning_rate=0.0005 \
     train_param.k_way=5
 
-# Train without feature cache (slower, for debugging)
-g5 train v1 --exp-name my_experiment --no-cache
-
 # Change episode configuration
 g5 train v1 --exp-name my_experiment \
     train_param.k_way=5 \
@@ -107,7 +102,6 @@ g5 train v1 --exp-name my_experiment \
 | `train_param.k_way` | N-way (classes per episode) | 10 |
 | `train_param.n_shot` | K-shot (support samples per class) | 5 |
 | `train_param.num_episodes` | Episodes per epoch | 2000 |
-| `features.use_cache` | Use cached features | true |
 | `exp_name` | Experiment run name (required via --exp-name) | v1_run |
 | `seed` | Random seed | 1234 |
 
@@ -145,115 +139,39 @@ g5 test outputs/mlflow_experiments/my_experiment/checkpoints/v1_050_0.8500.ckpt
 g5 test outputs/mlflow_experiments/my_experiment/checkpoints/last.ckpt train_param.k_way=5
 ```
 
-## Feature Extraction
+## Feature Export (Full-Audio Arrays)
 
-### Extract All Features
+Use this path when training with the sequence-sampling datamodule.
+
+### Export All Features
 
 ```bash
-g5 extract-features --exp-name my_experiment
+g5 export-features
 ```
-
-This extracts features for train, validation, and test splits. The `--exp-name` flag is required and organizes caches by experiment name.
 
 ### Options
 
 ```bash
-g5 extract-features --exp-name EXPERIMENT [OPTIONS]
+g5 export-features [OPTIONS]
 ```
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--exp-name`, `-e` | Experiment name for this cache (required) | - |
-| `--split`, `-s` | Split to extract (train/val/test/all) | all |
-| `--force`, `-f` | Force re-extraction even if cache exists | false |
+| `--split`, `-s` | Split to export (train/val/test/all) | all |
+| `--force`, `-f` | Overwrite existing files | false |
 
-### Examples
-
-```bash
-# Extract all splits
-g5 extract-features --exp-name my_experiment
-
-# Extract only training features
-g5 extract-features --exp-name my_experiment --split train
-
-# Force re-extraction
-g5 extract-features --exp-name my_experiment --force
-
-# Extract specific split with force
-g5 extract-features --exp-name my_experiment --split val --force
-```
-
-### Feature Cache Location
-
-Features are cached in:
-```
-{path.root_dir}/features_cache/{exp_name}/{split}/
-```
-
-Example:
-```
-/data/msc-proj/features_cache/my_experiment/train/
-  manifest.json
-  BV/
-    BV_file1_0.500_1.200.npy
-  PB/
-    PB_file1_1.000_2.500.npy
-```
-
-The cache is organized by experiment name, allowing different experiments to have separate feature caches. Each experiment maintains its own cache directory.
-
-## Cache Management
-
-### View Cache Information
+### Validate Exports
 
 ```bash
-g5 cache-info --exp-name my_experiment
+g5 check-features
 ```
 
-Shows:
-- Cache directory location
-- Number of samples per split
-- Number of classes
-- Disk usage
-- Class distribution
+### Output Location
 
-### Options
-
-```bash
-g5 cache-info --exp-name EXPERIMENT [OPTIONS]
+Files are written next to each `.wav`:
 ```
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--exp-name`, `-e` | Experiment name for the cache (required) | - |
-| `--split`, `-s` | Split to show info for | all |
-
-### Examples
-
-```bash
-# Show all cache info
-g5 cache-info --exp-name my_experiment
-
-# Show only training cache
-g5 cache-info --exp-name my_experiment --split train
-```
-
-### Verify Cache Integrity
-
-```bash
-g5 verify-cache --exp-name my_experiment
-```
-
-Checks that all cached feature files exist and are valid.
-
-### Examples
-
-```bash
-# Verify all caches
-g5 verify-cache --exp-name my_experiment
-
-# Verify specific split
-g5 verify-cache --exp-name my_experiment --split train
+BV_file1.wav
+BV_file1_logmel.npy
 ```
 
 ## Data Listing
@@ -354,10 +272,10 @@ HYDRA_FULL_ERROR=1 g5 train v1 --exp-name my_experiment
 
 ### Common Issues
 
-**No features cached:**
+**Missing feature files:**
 ```bash
-# Run feature extraction first
-g5 extract-features --exp-name my_experiment
+# Export features first
+g5 export-features --split all
 ```
 
 **Out of memory:**
@@ -366,12 +284,6 @@ g5 extract-features --exp-name my_experiment
 g5 train v1 --exp-name my_experiment \
     annotations.batch_size=1 \
     train_param.num_episodes=500
-```
-
-**Config hash mismatch:**
-```bash
-# Force re-extraction with new config
-g5 extract-features --force
 ```
 
 **MLflow not available:**
@@ -389,12 +301,11 @@ g5 train v1 --exp-name my_experiment
 # 1. Check data directories
 g5 list-data-dir --type all
 
-# 2. Extract features (takes time, run once)
-g5 extract-features --exp-name experiment_1
+# 2. Export features (takes time, run once)
+g5 export-features --split all
 
-# 3. Verify features were extracted correctly
-g5 cache-info --exp-name experiment_1
-g5 verify-cache --exp-name experiment_1
+# 3. Verify features were exported correctly
+g5 check-features --split all
 
 # 4. Train the model
 g5 train v1 --exp-name experiment_1
@@ -405,4 +316,3 @@ mlflow ui --backend-store-uri outputs/mlflow_experiments/experiment_1/mlruns
 # 6. Test the best model
 g5 test outputs/mlflow_experiments/experiment_1/checkpoints/last.ckpt
 ```
-

@@ -3,23 +3,23 @@
 
 model_checkpoint:
   _target_: lightning.pytorch.callbacks.ModelCheckpoint
-  monitor: "val_acc"  # name of the logged metric which determines when model is improving
-  mode: "max"  # "max" means higher metric value is better, can be also "min"
-  save_top_k: 1  # save only the best checkpoint (determined by val_acc)
-  save_last: true  # additionally always save the last epoch checkpoint
-  verbose: true  # enable verbose logging to see checkpoint saves
+  monitor: "val/loss"
+  mode: "min"
+  save_top_k: 1
+  save_last: true
+  verbose: true
   dirpath: ${runtime.ckpt_dir}
-  filename: "epoch_{epoch:03d}_val_acc_{val_acc:.4f}"
+  filename: "epoch_{epoch:03d}_val_loss_{val/loss:.4f}"
   auto_insert_metric_name: false
-  every_n_epochs: 1  # check every epoch (but only save if it's best or last)
-  save_on_train_epoch_end: false  # save after validation, not after training epoch
+  every_n_epochs: 1
+  save_on_train_epoch_end: false
 
 early_stopping:
   _target_: lightning.pytorch.callbacks.EarlyStopping
-  monitor: "val_acc"  # name of the logged metric which determines when model is improving
-  mode: "max"  # "max" means higher metric value is better, can be also "min"
-  patience: 10  # how many validation epochs of not improving until training stops
-  min_delta: 0.0  # minimum change in the monitored metric needed to qualify as an improvement
+  monitor: "val/loss"
+  mode: "min"
+  patience: 10
+  min_delta: 0.0
 
 model_summary:
   _target_: lightning.pytorch.callbacks.RichModelSummary
@@ -28,4 +28,3 @@ model_summary:
 learning_rate_monitor:
   _target_: lightning.pytorch.callbacks.LearningRateMonitor
   logging_interval: "epoch"
-

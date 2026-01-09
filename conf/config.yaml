@@ -35,14 +35,14 @@ path:
 
 # Feature Extraction Configuration
 features:
-  eps: 2e-16
+  eps: 1e-8
   fmax: 11025
   fmin: 50
   sr: 22050
   n_fft: 1024
   n_mels: 128
   hop_mel: 256
-  feature_types: pcen
+  feature_types: logmel
   embedding_dim: 2048
   drop_rate: 0.1
   with_bias: false
@@ -51,13 +51,6 @@ features:
   layer_4: false
   test_seglen_len_lim: 30
   test_hoplen_fenmu: 3
-  cache_dir: ${path.root_dir}/features_cache
-  version: v1
-  use_cache: true
-  force_recompute: false
-  format: npy
-  normalize: true
-  normalize_mode: per_sample
 
 # Training Parameters
 train_param:

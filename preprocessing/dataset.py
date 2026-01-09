@@ -136,7 +136,9 @@ class FewShotEpisodeDataset(Dataset):
     def __len__(self) -> int:
         return self.num_episodes
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(
+        self, idx: int
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Sample a few-shot episode.
 
@@ -172,7 +174,7 @@ class FewShotEpisodeDataset(Dataset):
                 chosen = np.random.choice(indices, size=needed, replace=False)
 
             support_idx = chosen[: self.n_shot]
-            query_idx = chosen[self.n_shot:]
+            query_idx = chosen[self.n_shot :]
 
             for i in support_idx:
                 x, _ = self.base_dataset[i]
