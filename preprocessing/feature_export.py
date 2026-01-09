@@ -87,7 +87,16 @@ def validate_features(
     cfg,
     splits: Iterable[str] = ("train", "val", "test"),
 ) -> List[Path]:
-    """Return a list of missing feature files for training."""
+    """
+    Return a list of missing feature files for training.
+    
+    Args:
+        cfg: Hydra DictConfig.
+        splits: Iterable of splits to validate (train, val, test).
+
+    Returns:
+        List of missing feature files for training.
+    """
     suffixes = cfg.features.feature_types.split("@")
     missing: List[Path] = []
 

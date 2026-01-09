@@ -2,10 +2,13 @@ import numpy as np
 import os
 from glob import glob
 from tqdm import tqdm
-import torch
+from pathlib import Path
 
 
-def recursive_glob(path, suffix):
+def recursive_glob(
+    path: Path, 
+    suffix: str
+):
     return (
         glob(os.path.join(path, "*" + suffix))
         + glob(os.path.join(path, "*/*" + suffix))

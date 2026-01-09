@@ -335,7 +335,6 @@ def main(cfg: DictConfig) -> None:
     Args:
         cfg: The configuration object.
     """
-    seed_everything(cfg.seed, workers=True)
     global mf_logger
 
     if cfg.ignore_warnings:
@@ -391,7 +390,8 @@ def main(cfg: DictConfig) -> None:
             f"Features: sr={cfg.features.sr}, n_mels={cfg.features.n_mels}, type={cfg.features.feature_types}"
         )
 
-        L.seed_everything(cfg.seed, workers=True)
+        if cfg.seed is not None:
+            L.seed_everything(cfg.seed, workers=True)
 
         # Allow test-only mode if checkpoint is provided
         test_only_mode = (

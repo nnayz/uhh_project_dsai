@@ -14,10 +14,11 @@ from typing import Optional
 import lightning as L
 import torch
 from torch.utils.data import DataLoader, Dataset
+from omegaconf import DictConfig
 
 from preprocessing.sequence_data import (
     IdentityBatchSampler,
-    PrototypeDynamicArrayDataSet,
+    PrototypeDynamicArrayDataSet, 
     PrototypeDynamicArrayDataSetVal,
     PrototypeDynamicArrayDataSetWithEval,
     PrototypeTestSet,
@@ -26,11 +27,23 @@ from preprocessing.sequence_data import (
 
 
 class DCASEFewShotDataModule(L.LightningDataModule):
-    """DataModule for class-balanced episodic training."""
+    """
+    DataModule for DCASE few-shot learning task.
+
+    Implements five key methods:
+    - prepare_data: prep the data
+    - setup: (things to do on every accelerator)
+    - train_dataloader: return the train loader
+    - val_dataloader: return the val loader
+    - test_dataloader: return the test loader
+
+
+    This allows you to share a full-dataset without explaining how to download, split, transform, and process the data. 
+    """
 
     def __init__(
         self,
-        cfg,
+        cfg: DictConfig,
     ) -> None:
         super().__init__()
         self.cfg = cfg
@@ -53,13 +66,13 @@ class DCASEFewShotDataModule(L.LightningDataModule):
         """Validate that required feature files exist."""
         from preprocessing.feature_export import validate_features
 
+
+        # Check that required feature files exist. 
         missing = validate_features(self.cfg)
         if missing:
             sample = "\n".join(str(p) for p in missing[:10])
             raise RuntimeError(
-                "Missing feature files (e.g., *_logmel.npy). "
-                "Generate them before training.\n"
-                f"Example missing files:\n{sample}"
+                f"Missing feature files (e.g., *_logmel.npy). Generate them before training.\nExample missing files:\n{sample}"
             )
 
     def setup(self, stage: Optional[str] = None) -> None:
@@ -67,6 +80,7 @@ class DCASEFewShotDataModule(L.LightningDataModule):
 
     def init(self, stage: Optional[str] = None) -> None:
         """Initialize datasets and loaders to match reference training behavior."""
+        # Get the training dataset. 
         if self.train_param.use_validation_first_5:
             self.dataset = PrototypeDynamicArrayDataSetWithEval(
                 path=self.path,
