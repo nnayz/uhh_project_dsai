@@ -11,6 +11,7 @@ import pandas as pd
 import pickle
 from rich.progress import Progress
 
+
 def save_pickle(obj: Any, fname: str | Path) -> None:
     """Save an object to a pickle file."""
     fname = Path(fname)
@@ -21,11 +22,14 @@ def save_pickle(obj: Any, fname: str | Path) -> None:
 
 
 def load_pickle(fname: str | Path) -> Any:
-    """Load an object from a pickle file."""
+    """
+    Load an object from a pickle file.
+    """
     fname = Path(fname)
     print(f"Load pickle at {fname}")
     with open(fname, "rb") as f:
         return pickle.load(f)
+
 
 class PrototypeModule(L.LightningModule):
     """
@@ -47,19 +51,16 @@ class PrototypeModule(L.LightningModule):
         self.onset_offset: dict[str, dict[str, np.ndarray]] = {}
         self.fps: float = 1.0  # Will be set from hparams if available
 
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
 
-    def step(self, batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, str], batch_idx: int) -> torch.Tensor:
+    def step(
+        self,
+        batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, str],
+        batch_idx: int,
+    ) -> torch.Tensor:
         if self.hparams.train.negative_train_contrast:
-            (
-                x,
-                x_neg,
-                y, 
-                y_neg,
-                class_name
-            ) = batch
+            (x, x_neg, y, y_neg, class_name) = batch
 
             x = torch.cat([x, x_neg], dim=0)
             y = torch.cat([y, y_neg], dim=0)
@@ -77,32 +78,48 @@ class PrototypeModule(L.LightningModule):
         tr_loss, tr_acc, tr_supcon = loss_fn(x_out, y, self.hparams.train.n_shot)
         return tr_loss, tr_acc, tr_supcon
 
-    def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, str], batch_idx: int) -> torch.Tensor:
+    def training_step(
+        self,
+        batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, str],
+        batch_idx: int,
+    ) -> torch.Tensor:
         tr_loss, tr_acc, tr_supcon = self.step(batch, batch_idx)
         cur_lr = self.trainer.optimizers[0].param_groups[0]["lr"]
         self.log("lr", cur_lr, prog_bar=True, on_epoch=True, on_step=True)
         self.log("train/loss", tr_loss, prog_bar=True, on_step=True, on_epoch=True)
         self.log("train/acc", tr_acc, prog_bar=True, on_step=False, on_epoch=True)
         return {"loss": tr_loss + tr_supcon, "acc": tr_acc}
-    
-    def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, str], batch_idx: int) -> torch.Tensor:
+
+    def validation_step(
+        self,
+        batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, str],
+        batch_idx: int,
+    ) -> torch.Tensor:
         val_loss, val_acc, val_supcon = self.step(batch, batch_idx)
         self.log("val/loss", val_loss, prog_bar=True, on_step=True, on_epoch=True)
         self.log("val/acc", val_acc, prog_bar=True, on_step=False, on_epoch=True)
         return {"loss": val_loss + val_supcon, "acc": val_acc}
-    
+
     def on_test_epoch_start(self) -> None:
         """Initialize onset_offset dictionary at the start of test epoch."""
         self.onset_offset = {}
         # Set fps from hparams if available
         if hasattr(self, "hparams") and hasattr(self.hparams, "features"):
-            if hasattr(self.hparams.features, "sr") and hasattr(self.hparams.features, "hop_mel"):
+            if hasattr(self.hparams.features, "sr") and hasattr(
+                self.hparams.features, "hop_mel"
+            ):
                 self.fps = self.hparams.features.sr / self.hparams.features.hop_mel
             elif hasattr(self.hparams.features, "fps"):
                 self.fps = self.hparams.features.fps
 
-    def test_step(self, batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, str], batch_idx: int) -> dict[str, Any]:
-        def transform(a: torch.Tensor, b: torch.Tensor, c: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def test_step(
+        self,
+        batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, str],
+        batch_idx: int,
+    ) -> dict[str, Any]:
+        def transform(
+            a: torch.Tensor, b: torch.Tensor, c: torch.Tensor
+        ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
             """Extract first element from batch dimension."""
             return a[0, ...], b[0, ...], c[0, ...]
 
@@ -219,11 +236,13 @@ class PrototypeModule(L.LightningModule):
             )
 
         import time
+
         time.sleep(0.1)  # TODO: remove it if CPU resource is not bottleneck
         return {}
 
     def convert_single_file(self, file_path: str | Path, save_path: str | Path) -> None:
         """Convert evaluation file to PSDS format."""
+
         def get_class(fname: str) -> str:
             fname = Path(fname).name
             if "ME" in fname:
@@ -232,7 +251,9 @@ class PrototypeModule(L.LightningModule):
                 return "PB"
             return "HB"
 
-        def generate_a_line(class_name: str, start: float, end: float, filename: str) -> str:
+        def generate_a_line(
+            class_name: str, start: float, end: float, filename: str
+        ) -> str:
             return f"{class_name}\t{start}\t{end}\t{filename}\n"
 
         content = "event_label\tonset\toffset\tfilename\n"
@@ -242,7 +263,9 @@ class PrototypeModule(L.LightningModule):
             fname, start, end = row["Audiofilename"], row["Starttime"], row["Endtime"]
             class_name = f"VAL@{get_class(fname)}"
             filename = Path(fname).name.replace(".wav", ".csv")
-            content += generate_a_line(class_name=class_name, start=start, end=end, filename=filename)
+            content += generate_a_line(
+                class_name=class_name, start=start, end=end, filename=filename
+            )
 
         Path(save_path).parent.mkdir(parents=True, exist_ok=True)
         with open(save_path, "w") as f:
@@ -269,16 +292,20 @@ class PrototypeModule(L.LightningModule):
         alpha_ct = 0.0
         alpha_st = 0.0
         max_efpr = 100
-        
+
         # Try to get folder path from hparams or use default
-        folder_path = getattr(self.hparams.path, "eval_meta", Path("eval_meta")) if hasattr(self, "hparams") else Path("eval_meta")
+        folder_path = (
+            getattr(self.hparams.path, "eval_meta", Path("eval_meta"))
+            if hasattr(self, "hparams")
+            else Path("eval_meta")
+        )
         ground_truth_csv = Path(folder_path) / "subset_gt.csv"
         metadata_csv = Path(folder_path) / "subset_meta.csv"
-        
+
         if not ground_truth_csv.exists() or not metadata_csv.exists():
             print(f"Warning: Ground truth or metadata files not found at {folder_path}")
             return
-            
+
         gt_table = pd.read_csv(ground_truth_csv, sep="\t")
         meta_table = pd.read_csv(metadata_csv, sep="\t")
         psds_eval = PSDSEval(
@@ -358,7 +385,9 @@ class PrototypeModule(L.LightningModule):
         # reset metrics at the end of every epoch
         pass
 
-    def configure_optimizers(self) -> Tuple[List[torch.optim.Optimizer], List[torch.optim.lr_scheduler.LRScheduler]]:
+    def configure_optimizers(
+        self,
+    ) -> Tuple[List[torch.optim.Optimizer], List[torch.optim.lr_scheduler.LRScheduler]]:
         """Choose what optimizers and learning-rate schedulers to use in your optimization.
         Normally you'd need one. But in the case of GANs or similar you might have multiple.
 
@@ -407,15 +436,15 @@ class PrototypeModule(L.LightningModule):
     #     return onset, offset
 
     def merging_segment(
-        self, 
-        pos_onset_offset: List[Tuple[float, float]], 
-        neg_min_length: float, 
-        max_len: float
+        self,
+        pos_onset_offset: List[Tuple[float, float]],
+        neg_min_length: float,
+        max_len: float,
     ) -> Tuple[List[float], List[float]]:
         """Merge segments that are close together."""
         onset, offset = [], []
         i = 0
-        
+
         while i < len(pos_onset_offset):
             if i >= len(pos_onset_offset) - 1:
                 on, off = pos_onset_offset[i]
@@ -426,10 +455,14 @@ class PrototypeModule(L.LightningModule):
             on, off = pos_onset_offset[i]
             on_next, off_next = pos_onset_offset[i + 1]
 
-            if (off_next - on) * self.fps < max_len or (on_next - off) * self.fps < 0.5 * neg_min_length:
+            if (off_next - on) * self.fps < max_len or (
+                on_next - off
+            ) * self.fps < 0.5 * neg_min_length:
                 onset.append(on)
                 offset.append(off_next)
-                while (off_next - on) * self.fps < max_len or (on_next - off) * self.fps < 0.5 * neg_min_length:
+                while (off_next - on) * self.fps < max_len or (
+                    on_next - off
+                ) * self.fps < 0.5 * neg_min_length:
                     i += 1
                     if i >= len(pos_onset_offset) - 1:
                         break
@@ -449,10 +482,10 @@ class PrototypeModule(L.LightningModule):
         return onset, offset
 
     def remove_long_segment(
-        self, 
-        pos_onset_offset: List[Tuple[float, float]], 
-        neg_min_length: float, 
-        max_len: float
+        self,
+        pos_onset_offset: List[Tuple[float, float]],
+        neg_min_length: float,
+        max_len: float,
     ) -> Tuple[List[float], List[float]]:
         """Remove segments that are too long."""
         onset, offset = [], []
@@ -469,14 +502,14 @@ class PrototypeModule(L.LightningModule):
         return onset, offset
 
     def padding_tail(
-        self, 
-        pos_onset_offset: List[Tuple[float, float]], 
-        padding_len: float
+        self, pos_onset_offset: List[Tuple[float, float]], padding_len: float
     ) -> Tuple[List[float], List[float]]:
         """Add padding to segments that have sufficient spacing."""
         if len(pos_onset_offset) <= 1:
-            return [on for on, _ in pos_onset_offset], [off for _, off in pos_onset_offset]
-            
+            return [on for on, _ in pos_onset_offset], [
+                off for _, off in pos_onset_offset
+            ]
+
         onset, offset = [], []
         for i in range(len(pos_onset_offset)):
             if i == 0:
@@ -494,32 +527,39 @@ class PrototypeModule(L.LightningModule):
             on, off = pos_onset_offset[i]
             next_on, next_off = pos_onset_offset[i + 1]
 
-            if (next_on - off > 0.1 + 2 * padding_len and 
-                on - prev_off > 0.1 + 2 * padding_len):
+            if (
+                next_on - off > 0.1 + 2 * padding_len
+                and on - prev_off > 0.1 + 2 * padding_len
+            ):
                 onset.append(on - padding_len)
                 offset.append(off + padding_len)
-                print(f"++padding: on={on:.2f}, off={off:.2f}, padding={padding_len:.2f}")
+                print(
+                    f"++padding: on={on:.2f}, off={off:.2f}, padding={padding_len:.2f}"
+                )
             else:
                 onset.append(on)
                 offset.append(off)
         return onset, offset
 
     def splitting_segment(
-        self, 
-        pos_onset_offset: List[Tuple[float, float]], 
-        neg_onset_offset: List[Tuple[float, float]], 
-        max_len: float
+        self,
+        pos_onset_offset: List[Tuple[float, float]],
+        neg_onset_offset: List[Tuple[float, float]],
+        max_len: float,
     ) -> Tuple[List[float], List[float]]:
         """Split long segments based on negative segment boundaries."""
-        def split_segment(_onset: float, _offset: float) -> Tuple[List[float], List[float]]:
+
+        def split_segment(
+            _onset: float, _offset: float
+        ) -> Tuple[List[float], List[float]]:
             """Divide the predicted positive segment into smaller ones based on negative segment estimation."""
             ret_onset, ret_offset = [], []
             breakpoints = [
-                (neg_on, neg_off) 
-                for neg_on, neg_off in neg_onset_offset 
+                (neg_on, neg_off)
+                for neg_on, neg_off in neg_onset_offset
                 if _onset < neg_on < _offset and neg_off < _offset
             ]
-            
+
             _on = _onset
             for break_on, break_off in breakpoints:
                 _off = break_on
@@ -554,9 +594,11 @@ class PrototypeModule(L.LightningModule):
             import librosa
             from scipy.signal import find_peaks, peak_widths
         except ImportError:
-            print("Warning: librosa and scipy required for split_long_segments_based_on_energy")
+            print(
+                "Warning: librosa and scipy required for split_long_segments_based_on_energy"
+            )
             return
-            
+
         print("Splitting long segments!!!!!!!")
         name_arr_temp, onset_arr_temp, offset_arr_temp = [], [], []
         for i in range(self.name_arr.shape[0]):
@@ -603,24 +645,28 @@ class PrototypeModule(L.LightningModule):
         )
 
     def log_result(
-        self, 
-        overall_scores: dict[str, Any], 
-        scores_per_set: dict[str, dict[str, Any]], 
-        scores_per_audiofile: dict[str, dict[str, Any]], 
-        name: str
+        self,
+        overall_scores: dict[str, Any],
+        scores_per_set: dict[str, dict[str, Any]],
+        scores_per_audiofile: dict[str, dict[str, Any]],
+        name: str,
     ) -> None:
         """Log results at different granularities."""
         self.log_final_result(overall_scores, name)
         self.log_result_for_each_set(scores_per_set, name)
         self.log_result_for_each_audio_file(scores_per_audiofile, name)
 
-    def log_final_result(self, overall_scores: dict[str, Any], name: str = "test") -> None:
+    def log_final_result(
+        self, overall_scores: dict[str, Any], name: str = "test"
+    ) -> None:
         """Log overall scores."""
         for k, v in overall_scores.items():
             value = v.item() if hasattr(v, "item") else v
             self.log(f"{name}-overall_scores/{k}", value)
 
-    def log_result_for_each_set(self, scores_per_set: dict[str, dict[str, Any]], name: str = "test") -> None:
+    def log_result_for_each_set(
+        self, scores_per_set: dict[str, dict[str, Any]], name: str = "test"
+    ) -> None:
         """Log scores for each dataset."""
         cache = {}
         for dataset, scores in scores_per_set.items():
@@ -630,9 +676,7 @@ class PrototypeModule(L.LightningModule):
             self.log(f"{name}-each_set_scores/{k}", v)
 
     def log_result_for_each_audio_file(
-        self, 
-        scores_per_audio_file: dict[str, dict[str, Any]], 
-        name: str = "test"
+        self, scores_per_audio_file: dict[str, dict[str, Any]], name: str = "test"
     ) -> None:
         """Log scores for each audio file."""
         cache = {}
@@ -700,7 +744,9 @@ class PrototypeModule(L.LightningModule):
         from src.utils.post_proc import post_processing
 
         val_path = Path(self.hparams.path.eval_dir)
-        val_path_str = str(val_path) + "/" if not str(val_path).endswith("/") else str(val_path)
+        val_path_str = (
+            str(val_path) + "/" if not str(val_path).endswith("/") else str(val_path)
+        )
 
         evaluation_file = Path(f"{alpha}/Eval_raw.csv")
         save_path = str(alpha)
@@ -726,16 +772,23 @@ class PrototypeModule(L.LightningModule):
         for threshold in np.arange(0.2, 0.6, 0.1):
             print(f"Threshold {threshold}")
             team_name = f"Baseline{threshold}"
-            new_evaluation_file = Path(f"{alpha}/Eval_{dataset}_threshold_ada_postproc_{threshold}.csv")
+            new_evaluation_file = Path(
+                f"{alpha}/Eval_{dataset}_threshold_ada_postproc_{threshold}.csv"
+            )
             post_processing(
-                val_path_str, str(evaluation_file), str(new_evaluation_file), threshold=threshold
+                val_path_str,
+                str(evaluation_file),
+                str(new_evaluation_file),
+                threshold=threshold,
             )
             (
                 overall_scores,
                 individual_file_result,
                 scores_per_set,
                 scores_per_audiofile,
-            ) = evaluate(str(new_evaluation_file), val_path_str, team_name, dataset, save_path)
+            ) = evaluate(
+                str(new_evaluation_file), val_path_str, team_name, dataset, save_path
+            )
             if (
                 best_result is None
                 or best_result[0]["fmeasure"] < overall_scores["fmeasure"]
@@ -761,13 +814,17 @@ class PrototypeModule(L.LightningModule):
             return best_result[0]
         return {}
 
-    def post_process_new(self, dataset: str = "VAL", alpha: float = 0.9) -> dict[str, Any]:
+    def post_process_new(
+        self, dataset: str = "VAL", alpha: float = 0.9
+    ) -> dict[str, Any]:
         """Post-process evaluation results with fixed length threshold."""
         from src.utils.evaluation import evaluate
         from src.utils.post_proc_new import post_processing
 
         val_path = Path(self.hparams.path.eval_dir)
-        val_path_str = str(val_path) + "/" if not str(val_path).endswith("/") else str(val_path)
+        val_path_str = (
+            str(val_path) + "/" if not str(val_path).endswith("/") else str(val_path)
+        )
 
         evaluation_file = Path(f"{alpha}/Eval_raw.csv")
         save_path = str(alpha)
@@ -776,7 +833,9 @@ class PrototypeModule(L.LightningModule):
         for threshold_length in np.arange(0.05, 0.25, 0.05):
             team_name = f"Baseline{threshold_length}"
             print(f"Threshold length {threshold_length}")
-            new_evaluation_file = Path(f"{alpha}/Eval_{dataset}_threshold_fix_length_postproc_{threshold_length}.csv")
+            new_evaluation_file = Path(
+                f"{alpha}/Eval_{dataset}_threshold_fix_length_postproc_{threshold_length}.csv"
+            )
             post_processing(
                 val_path_str,
                 str(evaluation_file),
@@ -788,7 +847,9 @@ class PrototypeModule(L.LightningModule):
                 individual_file_result,
                 scores_per_set,
                 scores_per_audiofile,
-            ) = evaluate(str(new_evaluation_file), val_path_str, team_name, dataset, save_path)
+            ) = evaluate(
+                str(new_evaluation_file), val_path_str, team_name, dataset, save_path
+            )
             if (
                 best_result is None
                 or best_result[0]["fmeasure"] < overall_scores["fmeasure"]
@@ -815,13 +876,13 @@ class PrototypeModule(L.LightningModule):
         return {}
 
     def get_probability(
-        self, 
-        proto_pos: torch.Tensor, 
-        neg_proto: torch.Tensor, 
-        query_set_out: torch.Tensor
+        self,
+        proto_pos: torch.Tensor,
+        neg_proto: torch.Tensor,
+        query_set_out: torch.Tensor,
     ) -> List[float]:
         """Calculate the probability of each query point belonging to the positive class.
-        
+
         Args:
             proto_pos: Positive class prototype
             neg_proto: Negative class prototype calculated from randomly chosen segments
@@ -838,13 +899,10 @@ class PrototypeModule(L.LightningModule):
         return prob_pos.detach().cpu().toList()
 
     def get_probability_old(
-        self, 
-        x_pos: torch.Tensor, 
-        neg_proto: torch.Tensor, 
-        query_set_out: torch.Tensor
+        self, x_pos: torch.Tensor, neg_proto: torch.Tensor, query_set_out: torch.Tensor
     ) -> List[float]:
         """Calculate probability using old method (computes prototype from x_pos).
-        
+
         Args:
             x_pos: Model output for the positive class
             neg_proto: Negative class prototype
@@ -867,11 +925,11 @@ class PrototypeModule(L.LightningModule):
 
     def concate_mask(self, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """Concatenate mask with input tensor along channel dimension.
-        
+
         Args:
             x: Input tensor of shape [batch, time, features]
             mask: Mask tensor of shape [batch, mask_features]
-            
+
         Returns:
             Concatenated tensor
         """
@@ -911,11 +969,10 @@ class PrototypeModule(L.LightningModule):
 
         print("Creating positive prototype")
         device = next(self.model.parameters()).device
-        
+
         with Progress() as progress:
             pos_task = progress.add_task(
-                "[green]Processing positive samples",
-                total=len(pos_loader)
+                "[green]Processing positive samples", total=len(pos_loader)
             )
             for batch in pos_loader:
                 x, y = batch
@@ -940,8 +997,7 @@ class PrototypeModule(L.LightningModule):
             print(f"Iteration number {i}")
             with Progress() as progress:
                 query_task = progress.add_task(
-                    f"[cyan]Iteration {i+1}/{iterations}",
-                    total=len(q_loader)
+                    f"[cyan]Iteration {i+1}/{iterations}", total=len(q_loader)
                 )
                 for batch in q_iterator:
                     x_q, y_q = batch
@@ -950,7 +1006,9 @@ class PrototypeModule(L.LightningModule):
                     proto_neg = proto_neg.detach().cpu()
                     x_query = x_query.detach().cpu()
 
-                    probability_pos = self.get_probability(pos_proto, proto_neg, x_query)
+                    probability_pos = self.get_probability(
+                        pos_proto, proto_neg, x_query
+                    )
                     prob_pos_iter.extend(probability_pos)
                     progress.update(query_task, advance=1)
 
@@ -967,9 +1025,9 @@ class PrototypeModule(L.LightningModule):
         onset_offset_ret = {}
         hop_mel = self.hparams.features.hop_mel
         sr = self.hparams.features.sr
-        
+
         str_time_query = strt_index_query * hop_mel / sr
-        
+
         for thresh in thresh_List:
             krn = np.array([1, -1])
             prob_thresh = np.where(prob_final > thresh, 1, 0)
@@ -1026,16 +1084,18 @@ class PrototypeModule(L.LightningModule):
 
     def euclidean_dist(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """Compute euclidean distance between two tensors.
-        
+
         Args:
             x: Tensor of shape [N, D]
             y: Tensor of shape [M, D]
-            
+
         Returns:
             Distance matrix of shape [N, M]
         """
         if x.size(1) != y.size(1):
-            raise ValueError(f"Feature dimensions must match: {x.size(1)} != {y.size(1)}")
+            raise ValueError(
+                f"Feature dimensions must match: {x.size(1)} != {y.size(1)}"
+            )
 
         n, m, d = x.size(0), y.size(0), x.size(1)
         x_expanded = x.unsqueeze(1).expand(n, m, d)
@@ -1044,16 +1104,18 @@ class PrototypeModule(L.LightningModule):
 
     def cosine_dist(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         """Compute cosine distance between two tensors.
-        
+
         Args:
             x: Tensor of shape [N, D]
             y: Tensor of shape [M, D]
-            
+
         Returns:
             Distance matrix of shape [N, M]
         """
         if x.size(1) != y.size(1):
-            raise ValueError(f"Feature dimensions must match: {x.size(1)} != {y.size(1)}")
+            raise ValueError(
+                f"Feature dimensions must match: {x.size(1)} != {y.size(1)}"
+            )
 
         n, m, d = x.size(0), y.size(0), x.size(1)
         x_expanded = x.unsqueeze(1).expand(n, m, d)
@@ -1119,5 +1181,3 @@ if __name__ == "__main__":
         save_pickle(tpr_vs_efpr, "tpr_vs_efpr.pkl")
 
     calculate_psds()
-
-

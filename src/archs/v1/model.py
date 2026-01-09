@@ -6,6 +6,8 @@ from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
+
+
 class ProtoNet(nn.Module):
     """
     ProtoNet model for few-shot classfication.
@@ -19,17 +21,14 @@ class ProtoNet(nn.Module):
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
-
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
-
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),
-
             nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
@@ -49,7 +48,9 @@ class BasicBlock(nn.Module):
     expansion = 1
 
     @staticmethod
-    def conv3x3(in_planes: int, out_planes: int, stride: int = 1, with_bias: bool = False) -> nn.Conv2d:
+    def conv3x3(
+        in_planes: int, out_planes: int, stride: int = 1, with_bias: bool = False
+    ) -> nn.Conv2d:
         """
         3x3 convolution with padding
         """
@@ -73,11 +74,13 @@ class BasicBlock(nn.Module):
         downsample: nn.Module | None = None,
         drop_rate: float = 0.0,
         drop_block: bool = False,
-        block_size: int = 1
+        block_size: int = 1,
     ):
         super().__init__()
 
-        self.conv1 = self.conv3x3(in_planes=in_planes, out_planes=planes, stride=stride, with_bias=with_bias)
+        self.conv1 = self.conv3x3(
+            in_planes=in_planes, out_planes=planes, stride=stride, with_bias=with_bias
+        )
 
         self.bn1 = nn.BatchNorm2d(planes)
 
@@ -86,15 +89,19 @@ class BasicBlock(nn.Module):
         else:
             self.relu = nn.ReLU()
 
-        self.conv2 = self.conv3x3(in_planes=planes, out_planes=planes, stride=1, with_bias=with_bias)
+        self.conv2 = self.conv3x3(
+            in_planes=planes, out_planes=planes, stride=1, with_bias=with_bias
+        )
         self.bn2 = nn.BatchNorm2d(planes)
 
-        self.conv3 = self.conv3x3(in_planes=planes, out_planes=planes, stride=stride, with_bias=with_bias)
+        self.conv3 = self.conv3x3(
+            in_planes=planes, out_planes=planes, stride=stride, with_bias=with_bias
+        )
         self.bn3 = nn.BatchNorm2d(planes)
 
         self.maxpool = nn.MaxPool2d(stride=stride)
         self.downsample = downsample
-        
+
         self.stride = stride
         self.drop_rate = drop_rate
 
@@ -121,13 +128,14 @@ class BasicBlock(nn.Module):
 
         if self.downsample is not None:
             residual = self.downsample(x)
-            
-        out += residual 
+
+        out += residual
         out = self.relu(out)
         out = self.maxpool(out)
 
         out = F.dropout(out, p=self.drop_rate, training=self.training, in_place=True)
         return out
+
 
 class ResNet(nn.Module):
     def __init__(
@@ -139,7 +147,7 @@ class ResNet(nn.Module):
         keep_prob: float = 1.0,
         drop_rate: float = 0.1,
         avg_pool: bool = True,
-    ): 
+    ):
         super().__init__()
 
         drop_rate = features.drop_rate
@@ -148,12 +156,30 @@ class ResNet(nn.Module):
         self.inplanes = 1
 
         self.linear_drop_rate = linear_drop_rate
-        self.layer1 = self._make_layer(block=block, planes=64, stride=2, features=features)
+        self.layer1 = self._make_layer(
+            block=block, planes=64, stride=2, features=features
+        )
 
-        self.layer2 = self._make_layer(block=block, planes=128, stride=2, features=features)
-        self.layer3 = self._make_layer(block=block, planes=64, stride=2, drop_block=True, block_size=dropblock_size, features=features)
+        self.layer2 = self._make_layer(
+            block=block, planes=128, stride=2, features=features
+        )
+        self.layer3 = self._make_layer(
+            block=block,
+            planes=64,
+            stride=2,
+            drop_block=True,
+            block_size=dropblock_size,
+            features=features,
+        )
 
-        self.layer4 = self._make_layer(block=block, planes=64, stride=2, drop_block=True, block_size=dropblock_size, features=features)
+        self.layer4 = self._make_layer(
+            block=block,
+            planes=64,
+            stride=2,
+            drop_block=True,
+            block_size=dropblock_size,
+            features=features,
+        )
 
         self.keep_prob = keep_prob
         self.features = features
@@ -165,16 +191,16 @@ class ResNet(nn.Module):
         self.pool_avg = nn.AdaptiveAvgPool2d(
             (
                 features.time_max_pool_dim,
-                int(features.embedding_dim / (features.time_max_pool_dim * 64))
+                int(features.embedding_dim / (features.time_max_pool_dim * 64)),
             )
-        ) # TODO: Try max pooling too
+        )  # TODO: Try max pooling too
 
         self.pool_max = nn.AdaptiveMaxPool2d(
             (
                 features.time_max_pool_dim,
-                int(features.embedding_dim / (features.time_max_pool_dim * 64))
+                int(features.embedding_dim / (features.time_max_pool_dim * 64)),
             )
-        ) # TODO: try max pooling
+        )  # TODO: try max pooling
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -191,9 +217,9 @@ class ResNet(nn.Module):
         """
 
         state_dict = torch.load(weight_file, map_location=device)
-        if 'state_dict' in state_dict:
-            state_dict = state_dict['state_dict']
-        
+        if "state_dict" in state_dict:
+            state_dict = state_dict["state_dict"]
+
         # Remove not needed prefixes from the keys of parameters
         weights = {}
 
@@ -207,21 +233,37 @@ class ResNet(nn.Module):
                 continue
 
             new_k = k[m.start() :]
-            new_k = new_k[1:] if new_k[0] == '.' else new_k
+            new_k = new_k[1:] if new_k[0] == "." else new_k
             weights[new_k] = state_dict[k]
 
             self.load_state_dict(weights)
             self.eval()
 
-            logger.info(f"using audio embedding network pretrained weight: {Path(weight_file).name}")
+            logger.info(
+                f"using audio embedding network pretrained weight: {Path(weight_file).name}"
+            )
             return self
 
-    def _make_layer(self, block: nn.Module, planes: int, stride: int = 1, drop_block: bool = False, block_size: int = 1, features: dict = None) -> nn.Sequential:
+    def _make_layer(
+        self,
+        block: nn.Module,
+        planes: int,
+        stride: int = 1,
+        drop_block: bool = False,
+        block_size: int = 1,
+        features: dict = None,
+    ) -> nn.Sequential:
 
         downsample = None
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                nn.Conv2d(in_channels=self.inplanes, out_channels=planes * block.expansion, kernel_size=1, stride=1, bias=False),
+                nn.Conv2d(
+                    in_channels=self.inplanes,
+                    out_channels=planes * block.expansion,
+                    kernel_size=1,
+                    stride=1,
+                    bias=False,
+                ),
                 nn.BatchNorm2d(planes * block.expansion),
             )
 
@@ -252,9 +294,10 @@ class ResNet(nn.Module):
 
         if self.features.layer_4:
             x = self.pool_avg(x)
-        
+
         x = x.view(x.size(0), -1)
         return x
+
 
 if __name__ == "__main__":
     from omegaconf import OmegaConf
@@ -263,7 +306,9 @@ if __name__ == "__main__":
     def get_n_params(model: nn.Module) -> int:
         pp = 0
         with Progress() as progress:
-            task = progress.add_task("Calculating number of parameters", total=len(list(model.parameters())))
+            task = progress.add_task(
+                "Calculating number of parameters", total=len(list(model.parameters()))
+            )
             for p in list(model.parameters()):
                 nn = 1
                 for s in list(p.size()):
@@ -282,8 +327,3 @@ if __name__ == "__main__":
 
     input = torch.randn((3, 17, 128))
     print(model(input).size())
-
-
-
-
-    
