@@ -4,12 +4,11 @@ name: v1
 
 # Model Architecture
 model:
-  encoder_type: conv4
+  encoder_type: resnet
   embedding_dim: ${features.embedding_dim}
   drop_rate: ${features.drop_rate}
   non_linearity: ${features.non_linearity}
   with_bias: ${features.with_bias}
-  conv_channels: [64, 64, 64, 64]
   layer_4: ${features.layer_4}
   time_max_pool_dim: ${features.time_max_pool_dim}
   distance: euclidean
@@ -30,7 +29,7 @@ episodes:
 training:
   learning_rate: ${train_param.lr_rate}
   weight_decay: 1e-4
-  max_epochs: 50
+  max_epochs: 200
   optimizer: adamw
   scheduler: step
   scheduler_gamma: ${train_param.scheduler_gamma}

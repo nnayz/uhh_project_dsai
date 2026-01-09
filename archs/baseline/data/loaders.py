@@ -23,7 +23,9 @@ def make_dcase_event_dataset(
     min_duration: Optional[float] = 0.5,
 ) -> DCASEEventDataset:
     root_dir = Path(root_dir)
-    ann_paths = [Path(a) if not Path(a).is_absolute() else Path(a) for a in annotation_files]
+    ann_paths = [
+        Path(a) if not Path(a).is_absolute() else Path(a) for a in annotation_files
+    ]
     return DCASEEventDataset(
         root_dir=root_dir,
         annotations=ann_paths,
@@ -71,9 +73,9 @@ def make_fewshot_dataloaders(
     )
     train_loader = DataLoader(
         train_episode_dataset,
-        batch_size=batch_size,   # usually 1 episode per batch
+        batch_size=batch_size,  # usually 1 episode per batch
         num_workers=num_workers,
-        shuffle=False,           # episode dataset does its own randomness
+        shuffle=False,  # episode dataset does its own randomness
         pin_memory=True,
     )
 

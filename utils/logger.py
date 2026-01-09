@@ -20,15 +20,8 @@ def setup_logger(cfg: DictConfig, name: str = "proto") -> List[Logger]:
     """
     log_dir = Path(cfg.runtime.log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
-    
-    tb_logger = TensorBoardLogger(
-        save_dir=log_dir,
-        name=name,
-        default_hp_metric=False
-    )
-    csv_logger = CSVLogger(
-        save_dir=log_dir,
-        name=name
-    )
-    
+
+    tb_logger = TensorBoardLogger(save_dir=log_dir, name=name, default_hp_metric=False)
+    csv_logger = CSVLogger(save_dir=log_dir, name=name)
+
     return [tb_logger, csv_logger]

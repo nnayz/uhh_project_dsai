@@ -21,12 +21,12 @@ from omegaconf import DictConfig
 def get_feature_params(cfg: DictConfig) -> dict:
     """
     Extract feature extraction parameters from config.
-    
+
     Supports both old config format (cfg.data) and new format (cfg.features).
-    
+
     Args:
         cfg: Hydra DictConfig.
-        
+
     Returns:
         Dict with sr, n_fft, hop_length, n_mels, fmin, fmax, eps.
     """
@@ -77,8 +77,11 @@ def load_audio(
     path = Path(path)
     params = get_feature_params(cfg)
     sr = params["sr"]
-    
+
     waveform, sr = librosa.load(path.as_posix(), sr=sr, mono=mono)
+    max_val = np.max(np.abs(waveform)) if waveform.size else 0.0
+    if max_val > 0:
+        waveform = waveform / max_val
     return waveform.astype(np.float32), sr
 
 
@@ -103,12 +106,12 @@ def waveform_to_logmel(
         logmel: np.ndarray, shape (n_mels, n_frames)
     """
     params = get_feature_params(cfg)
-    
+
     sr = params["sr"]
     n_fft = params["n_fft"]
     hop_length = params["hop_length"]
     n_mels = params["n_mels"]
-    
+
     # Use config values if not overridden
     if fmin is None:
         fmin = params["fmin"]
@@ -128,7 +131,7 @@ def waveform_to_logmel(
         fmax=fmax,
         power=2.0,
     )
-    logmel = librosa.power_to_db(mel + eps)
+    logmel = np.log(mel + eps)
     return logmel.astype(np.float32)
 
 
@@ -140,7 +143,7 @@ def waveform_to_pcen(
 ) -> np.ndarray:
     """
     Convert waveform to PCEN (Per-Channel Energy Normalization) spectrogram.
-    
+
     PCEN is more robust to background noise than log-mel and is commonly
     used in bioacoustic tasks.
 
@@ -154,12 +157,12 @@ def waveform_to_pcen(
         pcen: np.ndarray, shape (n_mels, n_frames)
     """
     params = get_feature_params(cfg)
-    
+
     sr = params["sr"]
     n_fft = params["n_fft"]
     hop_length = params["hop_length"]
     n_mels = params["n_mels"]
-    
+
     if fmin is None:
         fmin = params["fmin"]
     if fmax is None:
@@ -177,7 +180,7 @@ def waveform_to_pcen(
         fmax=fmax,
         power=2.0,
     )
-    
+
     # Apply PCEN normalization
     pcen = librosa.pcen(mel, sr=sr, hop_length=hop_length)
     return pcen.astype(np.float32)
@@ -190,19 +193,19 @@ def extract_features(
 ) -> np.ndarray:
     """
     Extract features from waveform based on config.
-    
+
     Args:
         waveform: Input waveform array.
         cfg: Hydra DictConfig with feature settings.
         feature_type: Feature type to extract (overrides config).
             Options: 'logmel', 'pcen'
-            
+
     Returns:
         features: np.ndarray, shape (n_mels, n_frames)
     """
     if feature_type is None:
         feature_type = getattr(cfg.features, "feature_types", "logmel")
-    
+
     if feature_type == "logmel":
         return waveform_to_logmel(waveform, cfg)
     elif feature_type == "pcen":
@@ -245,27 +248,23 @@ def extract_logmel_segment(
         min_duration = cfg.annotations.min_duration
     elif hasattr(cfg, "train_param") and hasattr(cfg.train_param, "seg_len"):
         min_duration = cfg.train_param.seg_len
-    
+
     # Pad short segments
     if min_duration is not None:
         min_samples = int(min_duration * sr)
         if len(segment) < min_samples:
             pad_width = min_samples - len(segment)
-            segment = np.pad(
-                segment,
-                (0, pad_width),
-                mode="constant"
-            )
+            segment = np.pad(segment, (0, pad_width), mode="constant")
 
     # Extract features
     if feature_type is None:
         feature_type = getattr(cfg.features, "feature_types", "logmel")
-    
+
     if feature_type == "logmel":
         features = waveform_to_logmel(waveform=segment, cfg=cfg)
     elif feature_type == "pcen":
         features = waveform_to_pcen(waveform=segment, cfg=cfg)
     else:
         raise ValueError(f"Unknown feature type: {feature_type}")
-    
+
     return features
