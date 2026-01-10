@@ -488,7 +488,7 @@ def main(cfg: DictConfig) -> None:
         if cfg.test and cfg.annotations.test_files:
             mf_logger.info("Running test evaluation...")
             datamodule.setup("test")
-            if datamodule.test_dataset is not None:
+            if datamodule.data_test is not None:
                 # Use loaded checkpoint if in test-only mode, otherwise use best from training
                 if test_only_mode:
                     ckpt_path = cfg.arch.training.load_weight_from

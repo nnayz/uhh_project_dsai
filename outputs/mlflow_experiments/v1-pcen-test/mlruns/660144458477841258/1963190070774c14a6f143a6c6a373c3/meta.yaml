@@ -1,0 +1,14 @@
+artifact_uri: /export/home/4prasad/uhh_project_dsai/outputs/mlflow_experiments/v1-pcen-test/mlruns/660144458477841258/1963190070774c14a6f143a6c6a373c3/artifacts
+end_time: 1768074206465
+entry_point_name: ''
+experiment_id: '660144458477841258'
+lifecycle_stage: active
+run_id: 1963190070774c14a6f143a6c6a373c3
+run_name: v1-pcen-test
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1768074206364
+status: 3
+tags: []
+user_id: 4prasad
