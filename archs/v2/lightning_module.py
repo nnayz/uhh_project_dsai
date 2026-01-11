@@ -14,8 +14,8 @@ from torch.optim.lr_scheduler import StepLR, CosineAnnealingLR
 from archs.v2.arch import ProtoNetV2
 from utils.distance import Distance
 from utils.loss import prototypical_loss, prototypical_loss_filter_negative
-from archs.v2.augmentation import AudioAugmentation
-
+#archs.v2.augmentation import AudioAugmentation
+from archs.v2.augmentation import BioacousticAugmentation as AudioAugmentation
 
 class ProtoNetV2LightningModule(L.LightningModule):
     """
