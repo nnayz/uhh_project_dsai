@@ -51,8 +51,12 @@ def get_lightning_module(arch_name: str) -> Type[L.LightningModule]:
         from archs.v2.lightning_module import ProtoNetV2LightningModule
 
         return ProtoNetV2LightningModule
+    elif arch_name == "v3":
+        from archs.v3.lightning_module import ProtoNetV3LightningModule
+
+        return ProtoNetV3LightningModule
     else:
-        raise ValueError(f"Unknown architecture: {arch_name}. Supported: v1, v2")
+        raise ValueError(f"Unknown architecture: {arch_name}. Supported: v1, v2, v3")
 
 
 def build_model(cfg: DictConfig) -> L.LightningModule:
@@ -102,6 +106,28 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
             time_mask_pct=cfg.arch.augmentation.time_mask_pct,
             freq_mask_pct=cfg.arch.augmentation.freq_mask_pct,
         )
+    elif arch_name == "v3":
+        model = module_class(
+            emb_dim=cfg.arch.model.embedding_dim,
+            distance=cfg.arch.model.distance,
+            n_mels=cfg.features.n_mels,
+            patch_freq=cfg.arch.model.patch_freq,
+            patch_time=cfg.arch.model.patch_time,
+            max_time_bins=cfg.arch.model.max_time_bins,
+            depth=cfg.arch.model.depth,
+            num_heads=cfg.arch.model.num_heads,
+            mlp_dim=cfg.arch.model.mlp_dim,
+            dropout=cfg.arch.model.dropout,
+            pooling=cfg.arch.model.pooling,
+            lr=cfg.arch.training.learning_rate,
+            weight_decay=cfg.arch.training.weight_decay,
+            scheduler_gamma=cfg.arch.training.scheduler_gamma,
+            scheduler_step_size=cfg.arch.training.scheduler_step_size,
+            scheduler_type=cfg.arch.training.scheduler,
+            num_classes=cfg.arch.episodes.n_way,
+            n_shot=cfg.train_param.n_shot,
+            negative_train_contrast=cfg.train_param.negative_train_contrast,
+        )
     else:
         raise ValueError(f"Unknown architecture: {arch_name}")
 
@@ -129,6 +155,21 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
                 "augmentation/noise": cfg.arch.augmentation.use_noise,
                 "augmentation/time_mask": cfg.arch.augmentation.time_mask_pct,
                 "augmentation/freq_mask": cfg.arch.augmentation.freq_mask_pct,
+            }
+        )
+    elif arch_name == "v3":
+        mf_logger.log_params(
+            {
+                "model/embedding_dim": cfg.arch.model.embedding_dim,
+                "model/distance": cfg.arch.model.distance,
+                "model/patch_freq": cfg.arch.model.patch_freq,
+                "model/patch_time": cfg.arch.model.patch_time,
+                "model/max_time_bins": cfg.arch.model.max_time_bins,
+                "model/depth": cfg.arch.model.depth,
+                "model/num_heads": cfg.arch.model.num_heads,
+                "model/mlp_dim": cfg.arch.model.mlp_dim,
+                "model/dropout": cfg.arch.model.dropout,
+                "model/pooling": cfg.arch.model.pooling,
             }
         )
 
