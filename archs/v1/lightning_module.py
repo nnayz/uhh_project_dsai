@@ -321,7 +321,9 @@ class ProtoNetLightningModule(L.LightningModule):
                     self.onset_offset[k]["offset_arr"], onset_offset[k][1]
                 )
 
-        out_root = Path(self.trainer.log_dir) / "val_eval" / f"epoch_{self.current_epoch:03d}"
+        # Get log_dir from datamodule's config (trainer.log_dir may be None with MLFlowLogger)
+        log_dir = self.trainer.datamodule.cfg.runtime.log_dir
+        out_root = Path(log_dir) / "val_eval" / f"epoch_{self.current_epoch:03d}"
         out_root.mkdir(parents=True, exist_ok=True)
 
         best = None
