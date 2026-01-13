@@ -365,7 +365,7 @@ class ProtoNetV3LightningModule(L.LightningModule):
                     self.onset_offset[k]["offset_arr"], onset_offset[k][1]
                 )
 
-        out_root = Path("outputs") / "val_eval" / f"epoch_{self.current_epoch:03d}"
+        out_root = Path(self.trainer.log_dir) / "val_eval" / f"epoch_{self.current_epoch:03d}"
         out_root.mkdir(parents=True, exist_ok=True)
 
         best = None
@@ -447,13 +447,3 @@ class ProtoNetV3LightningModule(L.LightningModule):
         if best is not None:
             # Log the best f-measure (for checkpointing and early stopping)
             self.log("val/fmeasure", best["fmeasure"], prog_bar=True)
-            
-            # Log summary statistics for all threshold combinations
-            if all_fmeasures:
-                all_fmeasures_array = np.array(all_fmeasures)
-                self.log("val/fmeasure_mean", float(np.mean(all_fmeasures_array)), prog_bar=False)
-                self.log("val/fmeasure_std", float(np.std(all_fmeasures_array)), prog_bar=False)
-                self.log("val/fmeasure_max", float(np.max(all_fmeasures_array)), prog_bar=False)
-                self.log("val/fmeasure_min", float(np.min(all_fmeasures_array)), prog_bar=False)
-                self.log("val/fmeasure_median", float(np.median(all_fmeasures_array)), prog_bar=False)
-                # Note: best_label (string) cannot be logged - it's saved in checkpoint filename/directory

@@ -18,6 +18,11 @@ model:
 # Episode Configuration
 episodes:
   n_way: ${train_param.k_way}
+  k_shot: ${train_param.n_shot}
+  n_query: 5
+  episodes_per_epoch: ${train_param.num_episodes}
+  val_episodes: 200
+  test_episodes: 200
 
 # Training Configuration
 # NOTE: Transformers need much lower LR and warmup compared to CNNs
@@ -25,6 +30,8 @@ training:
   learning_rate: 0.0001  # 10x lower than CNN - transformers need lower LR
   weight_decay: 0.05     # Higher weight decay helps transformers regularize
   max_epochs: 100
+  load_weight_from: null
+  gradient_clip_val: 1.0
   scheduler: cosine_warmup  # Use warmup for transformer stability
   warmup_epochs: 10         # Warmup for first 10 epochs
   scheduler_gamma: ${train_param.scheduler_gamma}
