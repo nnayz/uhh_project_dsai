@@ -13,16 +13,19 @@ Usage:
 from __future__ import annotations
 
 import os
+import random
 import warnings
 from pathlib import Path
 from typing import List, Type
 
 os.environ.setdefault("NUMBA_DISABLE_CACHING", "1")
 os.environ.setdefault("NUMBA_DISABLE_JIT", "1")
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")  # For CUDA >= 10.2 determinism
 
 import hydra
 import lightning as L
 from lightning import seed_everything
+import numpy as np
 import torch
 from hydra.utils import instantiate
 import omegaconf
@@ -36,9 +39,20 @@ from utils.resolve_device import resolve_device
 # Get global MLflow logger
 mf_logger = get_logger()
 
+# Deterministic settings for PyTorch
 torch.use_deterministic_algorithms(True, warn_only=True)
 torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.benchmark = False  # Must be False for determinism
+
+
+def set_seed(seed: int):
+    """Set random seed for all random number generators for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # For multi-GPU
+    os.environ["PYTHONHASHSEED"] = str(seed)
 
 
 def get_lightning_module(arch_name: str) -> Type[L.LightningModule]:
@@ -204,14 +218,13 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
                 # Fallback: use default val/acc unless overridden via Hydra.
                 monitor = "val/acc"
                 mode = "max"
-                filename = "{epoch:03d}_val_acc_{val/acc:.4f}"
 
                 callbacks.append(
                     ModelCheckpoint(
                         monitor=monitor,
                         mode=mode,
                         dirpath=str(ckpt_dir),
-                        filename=filename,
+                        filename="best",
                         save_top_k=1,
                         save_last=True,
                     )
@@ -266,14 +279,13 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
         # Default monitor metric when callbacks are not configured via Hydra.
         monitor = "val/acc"
         mode = "max"
-        filename = "{epoch:03d}_val_acc_{val/acc:.4f}"
 
         callbacks.append(
             ModelCheckpoint(
                 monitor=monitor,
                 mode=mode,
                 dirpath=str(ckpt_dir),
-                filename=filename,
+                filename="best",
                 save_top_k=1,  # Only save the best checkpoint
                 save_last=True,  # Also save the last checkpoint
             )
@@ -457,7 +469,9 @@ def main(cfg: DictConfig) -> None:
         )
 
         if cfg.seed is not None:
+            set_seed(cfg.seed)
             L.seed_everything(cfg.seed, workers=True)
+            mf_logger.info(f"Random seed set to {cfg.seed} for deterministic training")
 
         # Allow test-only mode if checkpoint is provided
         test_only_mode = (
@@ -502,6 +516,7 @@ def main(cfg: DictConfig) -> None:
             enable_progress_bar=True,
             num_sanity_val_steps=0,
             gradient_clip_val=cfg.arch.training.gradient_clip_val,
+            deterministic=True,  # Enable deterministic mode for reproducibility
         )
 
         # Skip training if in test-only mode
@@ -514,14 +529,18 @@ def main(cfg: DictConfig) -> None:
 
         # Find and log best checkpoint
         best_ckpt = None
+        ckpt_callback = None
         for callback in callbacks:
             # Check if this is a ModelCheckpoint callback
             from lightning.pytorch.callbacks import ModelCheckpoint
 
             if isinstance(callback, ModelCheckpoint):
                 best_ckpt = callback.best_model_path
+                ckpt_callback = callback
                 break
 
+        ckpt_dir = Path(cfg.runtime.ckpt_dir)
+        
         if best_ckpt:
             mf_logger.info(f"Best model saved to: {best_ckpt}")
             mf_logger.set_tag("best_checkpoint", best_ckpt)
@@ -533,10 +552,70 @@ def main(cfg: DictConfig) -> None:
                 mf_logger.warning(
                     f"Best checkpoint path exists but file not found: {best_ckpt}"
                 )
+            
+            # Write best checkpoint info file
+            import json
+            
+            # Load best checkpoint to get the epoch it was saved at
+            best_ckpt_data = torch.load(best_ckpt, map_location="cpu")
+            best_epoch = best_ckpt_data.get("epoch", None)
+            
+            # Get all metrics from the checkpoint
+            best_metrics = {}
+            if "callbacks" in best_ckpt_data:
+                for cb_state in best_ckpt_data["callbacks"].values():
+                    if isinstance(cb_state, dict) and "best_model_score" in cb_state:
+                        best_metrics["best_model_score"] = float(cb_state["best_model_score"]) if cb_state["best_model_score"] is not None else None
+            
+            # Also get current callback metrics (these are final epoch metrics)
+            final_metrics = {}
+            if hasattr(trainer, "callback_metrics"):
+                final_metrics = {
+                    k: float(v) for k, v in trainer.callback_metrics.items()
+                    if isinstance(v, (int, float, torch.Tensor))
+                }
+            
+            best_info = {
+                "checkpoint_path": str(best_ckpt),
+                "monitor": ckpt_callback.monitor if ckpt_callback else "val/acc",
+                "best_score": float(ckpt_callback.best_model_score) if ckpt_callback and ckpt_callback.best_model_score is not None else None,
+                "best_epoch": best_epoch,
+                "final_epoch": trainer.current_epoch,
+                "seed": cfg.seed,
+                "final_metrics": final_metrics,
+            }
+            best_info_path = ckpt_dir / "best_info.json"
+            with open(best_info_path, "w") as f:
+                json.dump(best_info, f, indent=2)
+            mf_logger.info(f"Best checkpoint info saved to: {best_info_path}")
         else:
             mf_logger.warning(
                 f"Best checkpoint path not set by ModelCheckpoint callback. Available checkpoints in {cfg.runtime.ckpt_dir}: {list(Path(cfg.runtime.ckpt_dir).glob('*.ckpt')) if Path(cfg.runtime.ckpt_dir).exists() else 'N/A'}"
             )
+        
+        # Write last checkpoint info file
+        last_ckpt = ckpt_dir / "last.ckpt"
+        if last_ckpt.exists():
+            import json
+            
+            # Get all final metrics
+            final_metrics = {}
+            if hasattr(trainer, "callback_metrics"):
+                final_metrics = {
+                    k: float(v) for k, v in trainer.callback_metrics.items()
+                    if isinstance(v, (int, float, torch.Tensor))
+                }
+            
+            last_info = {
+                "checkpoint_path": str(last_ckpt),
+                "epoch": trainer.current_epoch,
+                "seed": cfg.seed,
+                "metrics": final_metrics,
+            }
+            last_info_path = ckpt_dir / "last_info.json"
+            with open(last_info_path, "w") as f:
+                json.dump(last_info, f, indent=2)
+            mf_logger.info(f"Last checkpoint info saved to: {last_info_path}")
 
         # Log final metrics
         if hasattr(trainer, "callback_metrics"):
