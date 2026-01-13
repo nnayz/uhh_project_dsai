@@ -9,7 +9,7 @@ model_checkpoint:
   save_last: true
   verbose: true
   dirpath: ${runtime.ckpt_dir}
-  filename: "epoch_{epoch:03d}_val_acc_{val/acc:.4f}"
+  filename: "best"
   auto_insert_metric_name: false
   every_n_epochs: 1
   save_on_train_epoch_end: false
