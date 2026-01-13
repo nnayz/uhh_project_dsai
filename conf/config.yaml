@@ -18,7 +18,7 @@ defaults:
 print_config: false
 ignore_warnings: true
 train: true
-test: true
+test: false # By default, we do not test the model on the evaluation dataset
 seed: 1234
 disable_cudnn: false
 name: "mlflow_experiments"
@@ -59,6 +59,7 @@ train_param:
   seg_len: 0.2
   n_shot: 5
   k_way: 10
+  lr_rate: 0.001
   scheduler_gamma: 0.65
   scheduler_step_size: 10
   num_episodes: 2000
