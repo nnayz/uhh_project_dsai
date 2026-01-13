@@ -6,7 +6,7 @@ from pathlib import Path
 
 import torch
 from torch.optim import Adam
-from tqdm import tqdm
+from rich.progress import track
 
 from data.loaders import make_fewshot_dataloaders
 from model.prototype_network import ProtoNet
@@ -68,7 +68,7 @@ def main():
         running_loss = 0.0
         batches = 0
 
-        for batch in tqdm(train_loader, desc=f"Epoch {epoch} [train]"):
+        for batch in track(train_loader, description=f"Epoch {epoch} [train]"):
             support_x, support_y, query_x, query_y = batch
 
             # because batch_size=1, first dim is "episode"
@@ -94,7 +94,7 @@ def main():
             val_loss = 0.0
             val_batches = 0
             with torch.no_grad():
-                for batch in tqdm(val_loader, desc=f"Epoch {epoch} [val]"):
+                for batch in track(val_loader, description=f"Epoch {epoch} [val]"):
                     support_x, support_y, query_x, query_y = batch
                     support_x = support_x.squeeze(0)
                     support_y = support_y.squeeze(0)

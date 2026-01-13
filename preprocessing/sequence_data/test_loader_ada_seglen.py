@@ -178,7 +178,7 @@ class PrototypeAdaSeglenTestSet(Dataset):
 if __name__ == "__main__":
     import torch
     from omegaconf import OmegaConf
-    from tqdm import tqdm
+    from rich.progress import track
 
     from preprocessing.sequence_data.identity_sampler import IdentityBatchSampler
 
@@ -186,6 +186,6 @@ if __name__ == "__main__":
 
     conf = OmegaConf.load("/vol/research/dcase2022/project/hhlab/configs/train.yaml")
     testset = PrototypeTestSet(conf.path, conf.features, conf.train_param)
-    for (X_pos, X_neg, X_query, hop_seg), strt_index_query, audio_path in tqdm(testset):
+    for (X_pos, X_neg, X_query, hop_seg), strt_index_query, audio_path in track(testset, description="Testing..."):
         # import ipdb; ipdb.set_trace()
         pass
