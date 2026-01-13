@@ -4,10 +4,8 @@ name: v3
 
 # Model Architecture
 model:
-  encoder_type: ast
   embedding_dim: 384
   distance: euclidean
-  n_mels: ${features.n_mels}
   patch_freq: 8
   patch_time: 2
   max_time_bins: 32
@@ -20,23 +18,14 @@ model:
 # Episode Configuration
 episodes:
   n_way: ${train_param.k_way}
-  k_shot: ${train_param.n_shot}
-  n_query: 5
-  episodes_per_epoch: ${train_param.num_episodes}
-  val_episodes: 200
-  test_episodes: 200
-  seg_len: ${train_param.seg_len}
-  adaptive_seg_len: ${train_param.adaptive_seg_len}
 
 # Training Configuration
+# NOTE: Transformers need much lower LR and warmup compared to CNNs
 training:
-  learning_rate: ${train_param.lr_rate}
-  weight_decay: 1e-4
+  learning_rate: 0.0001  # 10x lower than CNN - transformers need lower LR
+  weight_decay: 0.05     # Higher weight decay helps transformers regularize
   max_epochs: 100
-  optimizer: adamw
-  scheduler: cosine
+  scheduler: cosine_warmup  # Use warmup for transformer stability
+  warmup_epochs: 10         # Warmup for first 10 epochs
   scheduler_gamma: ${train_param.scheduler_gamma}
   scheduler_step_size: ${train_param.scheduler_step_size}
-  gradient_clip_val: 1.0
-  negative_train_contrast: ${train_param.negative_train_contrast}
-  load_weight_from: ${train_param.load_weight_from}

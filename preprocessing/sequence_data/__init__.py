@@ -6,7 +6,6 @@ from preprocessing.sequence_data.Datagenerator import (
     class_to_int,
     norm_params,
 )
-from preprocessing.sequence_data.dynamic_dataset import PrototypeDynamicDataSet
 from preprocessing.sequence_data.dynamic_pcen_dataset import (
     PrototypeDynamicArrayDataSet,
 )

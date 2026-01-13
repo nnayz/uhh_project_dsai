@@ -126,8 +126,14 @@ g5 export-features --split train
 # Force overwrite existing files
 g5 export-features --split all --force
 
+# Export both logmel and pcen
+g5 export-features --split all --type logmel@pcen
+
 # Validate exports exist
 g5 check-features --split all
+
+# Validate specific feature types
+g5 check-features --split all --type logmel@pcen
 ```
 
 ---

@@ -38,7 +38,11 @@ class PrototypeTestSet(Dataset):
         self.train_param = train_param
         self.eval_param = eval_param
         self.fps = self.features.sr / self.features.hop_mel
-        self.fe = Feature_Extractor(self.features)
+        self.fe = Feature_Extractor(
+            self.features,
+            audio_path=[self.path.train_dir, self.path.eval_dir, self.path.test_dir],
+            stats_audio_path=[self.path.train_dir],
+        )
 
         extension = "*.csv"
         self.all_csv_files = [

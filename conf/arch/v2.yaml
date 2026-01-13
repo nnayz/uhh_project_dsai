@@ -12,7 +12,6 @@ model:
   in_channels: 1
   channels: [32, 64, 128, 256]  # Memory-efficient ResNet channels (vs [64,128,256,512])
   dropout: 0.1
-  n_mels: ${features.n_mels}
 
 # Data Augmentation (SpecAugment + Noise)
 augmentation:
@@ -22,27 +21,11 @@ augmentation:
   time_mask_pct: 0.15  # Mask up to 15% of time dimension
   freq_mask_pct: 0.15  # Mask up to 15% of frequency dimension
 
-# Episode Configuration
-episodes:
-  n_way: ${train_param.k_way}
-  k_shot: ${train_param.n_shot}
-  n_query: 5
-  episodes_per_epoch: ${train_param.num_episodes}
-  val_episodes: 200
-  test_episodes: 200
-  seg_len: ${train_param.seg_len}
-  adaptive_seg_len: ${train_param.adaptive_seg_len}
-
 # Training Configuration
 training:
   learning_rate: ${train_param.lr_rate}
   weight_decay: 1e-4
   max_epochs: 50
-  optimizer: adamw
   scheduler: cosine  # Cosine annealing for better convergence
   scheduler_gamma: ${train_param.scheduler_gamma}
   scheduler_step_size: ${train_param.scheduler_step_size}
-  gradient_clip_val: 1.0  # Gradient clipping for stability
-  negative_train_contrast: ${train_param.negative_train_contrast}
-  load_weight_from: ${train_param.load_weight_from}
-
