@@ -107,8 +107,6 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
             freq_mask_pct=cfg.arch.augmentation.freq_mask_pct,
         )
     elif arch_name == "v3":
-        # Get warmup_epochs with default fallback for backwards compatibility
-        warmup_epochs = getattr(cfg.arch.training, "warmup_epochs", 10)
         model = module_class(
             emb_dim=cfg.arch.model.embedding_dim,
             distance=cfg.arch.model.distance,
@@ -126,7 +124,7 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
             scheduler_gamma=cfg.arch.training.scheduler_gamma,
             scheduler_step_size=cfg.arch.training.scheduler_step_size,
             scheduler_type=cfg.arch.training.scheduler,
-            warmup_epochs=warmup_epochs,
+            warmup_epochs=cfg.arch.training.warmup_epochs,
             max_epochs=cfg.arch.training.max_epochs,
             num_classes=cfg.arch.episodes.n_way,
             n_shot=cfg.train_param.n_shot,
@@ -193,20 +191,7 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
         if hasattr(callbacks_cfg, "model_checkpoint"):
             try:
                 checkpoint = instantiate(callbacks_cfg.model_checkpoint)
-                # Customize checkpoint callback based on architecture
-                arch_name = cfg.arch.name
-                
-                # For v1 and v3, monitor val/fmeasure; for v2, monitor val/acc
-                if arch_name in ["v1", "v3"]:
-                    checkpoint.monitor = "val/fmeasure"
-                    checkpoint.mode = "max"
-                    checkpoint.filename = f"{arch_name}_{{epoch:03d}}_val_fmeasure_{{val/fmeasure:.4f}}"
-                elif arch_name == "v2":
-                    checkpoint.monitor = "val/acc"
-                    checkpoint.mode = "max"
-                    checkpoint.filename = f"{arch_name}_{{epoch:03d}}_val_acc_{{val/acc:.4f}}"
-                
-                # Ensure only best and last are saved
+                # Enforce best + last checkpoint saving; monitor is configured via Hydra.
                 checkpoint.save_top_k = 1
                 checkpoint.save_last = True
                 
@@ -216,16 +201,10 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
                 mf_logger.warning(f"Failed to instantiate ModelCheckpoint: {e}")
                 from lightning.pytorch.callbacks import ModelCheckpoint
 
-                # Fallback: determine monitor based on architecture
-                arch_name = cfg.arch.name
-                if arch_name in ["v1", "v3"]:
-                    monitor = "val/fmeasure"
-                    mode = "max"
-                    filename = f"{arch_name}_{{epoch:03d}}_val_fmeasure_{{val/fmeasure:.4f}}"
-                else:
-                    monitor = "val/acc"
-                    mode = "max"
-                    filename = f"{arch_name}_{{epoch:03d}}_val_acc_{{val/acc:.4f}}"
+                # Fallback: use default val/acc unless overridden via Hydra.
+                monitor = "val/acc"
+                mode = "max"
+                filename = "{epoch:03d}_val_acc_{val/acc:.4f}"
 
                 callbacks.append(
                     ModelCheckpoint(
@@ -241,29 +220,16 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
         if hasattr(callbacks_cfg, "early_stopping"):
             try:
                 early_stop = instantiate(callbacks_cfg.early_stopping)
-                # Customize early stopping based on architecture
-                arch_name = cfg.arch.name
-                if arch_name in ["v1", "v3"]:
-                    early_stop.monitor = "val/fmeasure"
-                    early_stop.mode = "max"
-                elif arch_name == "v2":
-                    early_stop.monitor = "val/acc"
-                    early_stop.mode = "max"
-                
+                # Monitor is configured via Hydra.
                 callbacks.append(early_stop)
                 mf_logger.info(f"Instantiated EarlyStopping from config (monitor={early_stop.monitor})")
             except Exception as e:
                 mf_logger.warning(f"Failed to instantiate EarlyStopping: {e}")
                 from lightning.pytorch.callbacks import EarlyStopping
 
-                # Fallback: determine monitor based on architecture
-                arch_name = cfg.arch.name
-                if arch_name in ["v1", "v3"]:
-                    monitor = "val/fmeasure"
-                    mode = "max"
-                else:
-                    monitor = "val/acc"
-                    mode = "max"
+                # Fallback: use default val/acc unless overridden via Hydra.
+                monitor = "val/acc"
+                mode = "max"
 
                 callbacks.append(
                     EarlyStopping(
@@ -297,16 +263,10 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
             RichProgressBar,
         )
 
-        # Determine monitor metric based on architecture
-        arch_name = cfg.arch.name
-        if arch_name in ["v1", "v3"]:
-            monitor = "val/fmeasure"
-            mode = "max"
-            filename = f"{arch_name}_{{epoch:03d}}_val_fmeasure_{{val/fmeasure:.4f}}"
-        else:
-            monitor = "val/acc"
-            mode = "max"
-            filename = f"{arch_name}_{{epoch:03d}}_val_acc_{{val/acc:.4f}}"
+        # Default monitor metric when callbacks are not configured via Hydra.
+        monitor = "val/acc"
+        mode = "max"
+        filename = "{epoch:03d}_val_acc_{val/acc:.4f}"
 
         callbacks.append(
             ModelCheckpoint(
@@ -318,14 +278,9 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
                 save_last=True,  # Also save the last checkpoint
             )
         )
-        # Determine early stopping monitor based on architecture
-        arch_name = cfg.arch.name
-        if arch_name in ["v1", "v3"]:
-            early_stop_monitor = "val/fmeasure"
-            early_stop_mode = "max"
-        else:
-            early_stop_monitor = "val/acc"
-            early_stop_mode = "max"
+        # Default early stopping monitor when callbacks are not configured via Hydra.
+        early_stop_monitor = "val/acc"
+        early_stop_mode = "max"
 
         callbacks.append(
             EarlyStopping(

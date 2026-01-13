@@ -67,8 +67,19 @@ class DCASEFewShotDataModule(L.LightningDataModule):
         from preprocessing.feature_export import validate_features
 
 
-        # Check that required feature files exist. 
-        missing = validate_features(self.cfg)
+        # Check only the splits that will be used.
+        splits = []
+        if getattr(self.cfg, "train", False):
+            splits.extend(["train", "val"])
+        if getattr(self.cfg, "test", False):
+            splits.append("val")
+            if getattr(self.cfg.path, "test_dir", None):
+                splits.append("test")
+        splits = list(dict.fromkeys(splits))
+        if not splits:
+            return
+
+        missing = validate_features(self.cfg, splits=splits)
         if missing:
             sample = "\n".join(str(p) for p in missing[:10])
             raise RuntimeError(

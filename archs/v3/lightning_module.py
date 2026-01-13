@@ -74,10 +74,15 @@ class ProtoNetV3LightningModule(L.LightningModule):
 
     def _forward_embed(self, x: torch.Tensor) -> torch.Tensor:
         if x.dim() == 3:
-            if x.shape[1] == self.n_mels:
+            # Expect time-major input (B, T, F) from datasets.
+            if x.shape[2] == self.n_mels:
+                x = x.permute(0, 2, 1).unsqueeze(1)
+            elif x.shape[1] == self.n_mels:
                 x = x.unsqueeze(1)
             else:
-                x = x.permute(0, 2, 1).unsqueeze(1)
+                raise ValueError(
+                    f"Unexpected feature shape {tuple(x.shape)} for n_mels={self.n_mels}."
+                )
         elif x.dim() == 4 and x.shape[1] != 1:
             x = x.permute(0, 3, 1, 2)
         return self.model.encoder(x)

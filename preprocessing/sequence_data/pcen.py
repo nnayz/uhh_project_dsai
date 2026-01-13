@@ -34,6 +34,13 @@ class Feature_Extractor:
         if stats_audio_path is None:
             stats_audio_path = audio_path
         self.files = []
+        self.stats_key = tuple(
+            sorted(
+                os.path.abspath(p)
+                for p in stats_audio_path
+                if p is not None
+            )
+        )
         # stats_audio_path is the sole source for normalization statistics.
         for each in stats_audio_path:
             if each is not None:
@@ -48,8 +55,11 @@ class Feature_Extractor:
         self.feature_lens = []
 
     def update_mean_std(self, feature_types=None):
-        if len(list(Feature_Extractor.mean_std.keys())) != 0:
-            return
+        if not self.stats_key:
+            raise RuntimeError(
+                "No stats_audio_path provided for normalization. "
+                "Pass stats_audio_path pointing to the training set."
+            )
         if not self.files:
             raise RuntimeError(
                 "No audio files found for mean/std computation. "
@@ -57,13 +67,19 @@ class Feature_Extractor:
             )
         print("Calculating mean and std")
         for suffix in self.feature_types if (feature_types is None) else feature_types:
+            cache_key = (self.stats_key, suffix)
+            if cache_key in Feature_Extractor.mean_std:
+                continue
             print("Calculating: ", suffix)
             features = []
             for audio_path in tqdm(self.files[:1000]):
                 feature_path = audio_path.replace(".wav", "_%s.npy" % suffix)
                 features.append(np.load(feature_path).flatten())
             all_data = np.concatenate(features)
-            Feature_Extractor.mean_std[suffix] = [np.mean(all_data), np.std(all_data)]
+            Feature_Extractor.mean_std[cache_key] = [
+                np.mean(all_data),
+                np.std(all_data),
+            ]
         print(Feature_Extractor.mean_std)
 
     def _ensure_time_major(self, feature: np.ndarray) -> np.ndarray:
@@ -81,7 +97,7 @@ class Feature_Extractor:
             if not normalized:
                 loaded = np.load(feature_path)
             else:
-                mean, std = Feature_Extractor.mean_std[suffix]
+                mean, std = Feature_Extractor.mean_std[(self.stats_key, suffix)]
                 loaded = (np.load(feature_path) - mean) / std
             loaded = self._ensure_time_major(loaded)
             features.append(loaded)

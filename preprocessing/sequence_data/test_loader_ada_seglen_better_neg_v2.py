@@ -237,11 +237,10 @@ class PrototypeAdaSeglenBetterNegTestSetV2(Dataset):
         return feat_pos, feat_neg, feat_query, strt_indx_query
 
     def negative_onset_offset_estimate(self, audio_path, start_time, end_time):
-        x, sr = librosa.load(audio_path, sr=None)
-        assert sr == 22050
+        x, sr = librosa.load(audio_path, sr=self.features.sr)
         rms = librosa.feature.rms(
-            y=x, frame_length=1024, hop_length=256
-        )  # TODO hard code here
+            y=x, frame_length=self.features.n_fft, hop_length=self.features.hop_mel
+        )
         rms = rms[0, ...]
 
         # Try range limit
