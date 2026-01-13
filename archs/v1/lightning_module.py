@@ -99,8 +99,9 @@ class ProtoNetLightningModule(L.LightningModule):
         return loss + dist_loss
 
     def validation_step(self, batch, batch_idx: int) -> torch.Tensor:
-        loss, _, dist_loss = self._step(batch)
+        loss, acc, dist_loss = self._step(batch)
         self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("val/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
         return loss + dist_loss
 
     def on_validation_epoch_end(self) -> None:

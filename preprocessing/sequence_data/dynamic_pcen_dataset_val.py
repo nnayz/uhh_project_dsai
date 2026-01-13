@@ -16,6 +16,7 @@ import wave
 
 from preprocessing.sequence_data.Datagenerator import Datagen_test
 from preprocessing.sequence_data.pcen import Feature_Extractor
+from preprocessing.ann_service import parse_positive_events_val
 
 # logmel.npy: log mel spectrogram
 # .npy: PCEN spectrogram
@@ -221,10 +222,12 @@ class PrototypeDynamicArrayDataSetVal(Dataset):
         # Main function for building up meta data
         for file in tqdm(self.all_csv_files):
             glob_cls_name = self.get_glob_cls_name(file)
-
-            df_pos = self.get_df_pos(file)
-            start_time, end_time = self.get_time(df_pos)
-            cls_list = self.get_cls_list(df_pos, glob_cls_name, start_time)
+            events = parse_positive_events_val(file, glob_cls_name)
+            if not events:
+                continue
+            start_time = [s for s, _, _ in events]
+            end_time = [e for _, e, _ in events]
+            cls_list = [c for _, _, c in events]
             self.update_meta(start_time, end_time, cls_list, file)
 
     def update_meta(self, start_time, end_time, cls_list, csv_file):
