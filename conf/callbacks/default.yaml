@@ -3,8 +3,8 @@
 
 model_checkpoint:
   _target_: lightning.pytorch.callbacks.ModelCheckpoint
-  monitor: "val/acc"
-  mode: "max"
+  monitor: ${checkpoint.monitor}
+  mode: ${checkpoint.mode}
   save_top_k: 1
   save_last: true
   verbose: true
@@ -16,8 +16,8 @@ model_checkpoint:
 
 early_stopping:
   _target_: lightning.pytorch.callbacks.EarlyStopping
-  monitor: "val/acc"
-  mode: "max"
+  monitor: ${checkpoint.monitor}
+  mode: ${checkpoint.mode}
   patience: 10
   min_delta: 0.0
 

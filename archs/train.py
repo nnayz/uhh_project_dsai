@@ -214,9 +214,9 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
                 mf_logger.warning(f"Failed to instantiate ModelCheckpoint: {e}")
                 from lightning.pytorch.callbacks import ModelCheckpoint
 
-                # Fallback: use default val/acc unless overridden via Hydra.
-                monitor = "val/acc"
-                mode = "max"
+                # Fallback: use checkpoint config settings
+                monitor = cfg.checkpoint.monitor if hasattr(cfg, "checkpoint") else "val/acc"
+                mode = cfg.checkpoint.mode if hasattr(cfg, "checkpoint") else "max"
 
                 callbacks.append(
                     ModelCheckpoint(
@@ -239,9 +239,9 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
                 mf_logger.warning(f"Failed to instantiate EarlyStopping: {e}")
                 from lightning.pytorch.callbacks import EarlyStopping
 
-                # Fallback: use default val/acc unless overridden via Hydra.
-                monitor = "val/acc"
-                mode = "max"
+                # Fallback: use checkpoint config settings
+                monitor = cfg.checkpoint.monitor if hasattr(cfg, "checkpoint") else "val/acc"
+                mode = cfg.checkpoint.mode if hasattr(cfg, "checkpoint") else "max"
 
                 callbacks.append(
                     EarlyStopping(
@@ -275,9 +275,9 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
             RichProgressBar,
         )
 
-        # Default monitor metric when callbacks are not configured via Hydra.
-        monitor = "val/acc"
-        mode = "max"
+        # Use checkpoint config settings
+        monitor = cfg.checkpoint.monitor if hasattr(cfg, "checkpoint") else "val/acc"
+        mode = cfg.checkpoint.mode if hasattr(cfg, "checkpoint") else "max"
 
         callbacks.append(
             ModelCheckpoint(
@@ -289,14 +289,11 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
                 save_last=True,  # Also save the last checkpoint
             )
         )
-        # Default early stopping monitor when callbacks are not configured via Hydra.
-        early_stop_monitor = "val/acc"
-        early_stop_mode = "max"
 
         callbacks.append(
             EarlyStopping(
-                monitor=early_stop_monitor,
-                mode=early_stop_mode,
+                monitor=monitor,
+                mode=mode,
                 patience=10,
             )
         )
@@ -313,7 +310,7 @@ def build_pl_loggers(cfg: DictConfig) -> List:
     log_dir = Path(cfg.runtime.log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    # Always try to use MLflow logger for Lightning
+    # Use MLflow logger for experiment tracking
     try:
         from lightning.pytorch.loggers import MLFlowLogger as PLMLFlowLogger
 
