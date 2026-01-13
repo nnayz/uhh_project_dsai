@@ -24,7 +24,6 @@ os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")  # For CUDA >= 10.2 
 
 import hydra
 import lightning as L
-from lightning import seed_everything
 import numpy as np
 import torch
 from hydra.utils import instantiate
@@ -516,7 +515,7 @@ def main(cfg: DictConfig) -> None:
             enable_progress_bar=True,
             num_sanity_val_steps=0,
             gradient_clip_val=cfg.arch.training.gradient_clip_val,
-            deterministic=True,  # Enable deterministic mode for reproducibility
+            deterministic="warn",  # Enable deterministic mode for reproducibility, warn only for ops without deterministic CUDA implementations
         )
 
         # Skip training if in test-only mode
