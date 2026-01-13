@@ -514,7 +514,7 @@ class PrototypeAdaSeglenBetterNegTestSetV2(Dataset):
 if __name__ == "__main__":
     import torch
     from omegaconf import OmegaConf
-    from tqdm import tqdm
+    from rich.progress import track
 
     from preprocessing.sequence_data.identity_sampler import IdentityBatchSampler
 
@@ -542,7 +542,7 @@ if __name__ == "__main__":
         audio_path,
         mask,
         _,
-    ) in tqdm(testset):
+    ) in track(testset, description="Testing..."):
         # import ipdb; ipdb.set_trace()
         pass
         # print(X_pos.shape, X_neg.shape, X_query.shape, X_pos_neg.shape, X_neg_neg.shape, X_query_neg.shape, hop_seg,hop_seg_neg, max_len, strt_index_query, audio_path)

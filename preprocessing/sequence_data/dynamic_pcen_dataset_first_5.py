@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 import torch.nn as nn
 import torch
 import matplotlib.pyplot as plt
-from tqdm import tqdm
+from rich.progress import track
 import soundfile as sf
 import wave
 
@@ -157,7 +157,7 @@ class PrototypeDynamicArrayDataSetWithEval(Dataset):
 
     def load_mask(self):
         print("Loading frequency masks")
-        for clss in tqdm(self.meta.keys()):
+        for clss in track(list(self.meta.keys()), description="Loading masks..."):
             self.mask[clss] = []
 
             if not os.path.exists(os.path.join(self.path.mask_dir, clss)):
@@ -171,7 +171,7 @@ class PrototypeDynamicArrayDataSetWithEval(Dataset):
                 )
 
     def build_mask(self):
-        for file in tqdm(self.all_csv_files):
+        for file in track(self.all_csv_files, description="Building mask..."):
             audio_path = file.replace("csv", "wav")
             if audio_path not in self.pcen.keys():
                 self.mel[audio_path] = self.fe.extract_feature(
@@ -180,7 +180,7 @@ class PrototypeDynamicArrayDataSetWithEval(Dataset):
         self.build_freq_energy_mask()
 
     def build_buffer(self):
-        for file in tqdm(self.all_csv_files):
+        for file in track(self.all_csv_files, description="Building buffer..."):
             audio_path = file.replace("csv", "wav")
             if audio_path not in self.pcen.keys():
                 self.pcen[audio_path] = self.fe.extract_feature(audio_path)
@@ -287,11 +287,9 @@ class PrototypeDynamicArrayDataSetWithEval(Dataset):
         )  # concatenate on the channel dimension
 
     def build_meta(self):
-        from tqdm import tqdm
-
         print("Preparing meta data...")
         # Main function for building up meta data
-        for file in tqdm(self.all_csv_files):
+        for file in track(self.all_csv_files, description="Preparing meta data..."):
             glob_cls_name = self.get_glob_cls_name(file)
 
             df_pos = self.get_df_pos(file)
@@ -509,7 +507,7 @@ class PrototypeDynamicArrayDataSetWithEval(Dataset):
     def build_freq_energy_mask(self):
         # Set feature to mel
         # With all the information from the key 'info'
-        for clss in tqdm(self.meta.keys()):
+        for clss in track(list(self.meta.keys()), description="Building freq energy mask..."):
 
             self.meta[clss]["freq_mask"] = None
 
@@ -518,7 +516,7 @@ class PrototypeDynamicArrayDataSetWithEval(Dataset):
             if len(os.listdir(os.path.join(self.path.mask_dir, clss))) != 0:
                 continue
             print(clss)
-            for i, (s, e) in tqdm(enumerate(self.meta[clss]["info"])):
+            for i, (s, e) in enumerate(self.meta[clss]["info"]):
                 # Use the negative between each positive infomation block to construct the energy mask
                 if i == 0:
                     info_prev = (0.0, 0.0)
@@ -560,7 +558,6 @@ class PrototypeDynamicArrayDataSetWithEval(Dataset):
 def main():
     import torch
     from omegaconf import OmegaConf
-    from tqdm import tqdm
 
     from preprocessing.sequence_data.identity_sampler import IdentityBatchSampler
 
@@ -581,7 +578,7 @@ def main():
     )
     loader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler, num_workers=0)
     # mean: 1.4421, std: 1.2201
-    for each in tqdm(loader):
+    for each in track(loader, description="Processing..."):
         x, x_neg, y, y_neg, class_name = each
         import ipdb
 

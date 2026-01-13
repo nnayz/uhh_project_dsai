@@ -1,7 +1,7 @@
 import numpy as np
 import os
 from glob import glob
-from tqdm import tqdm
+from rich.progress import track
 from pathlib import Path
 
 
@@ -72,7 +72,7 @@ class Feature_Extractor:
                 continue
             print("Calculating: ", suffix)
             features = []
-            for audio_path in tqdm(self.files[:1000]):
+            for audio_path in track(self.files[:1000], description="Loading features..."):
                 feature_path = audio_path.replace(".wav", "_%s.npy" % suffix)
                 features.append(np.load(feature_path).flatten())
             all_data = np.concatenate(features)

@@ -164,11 +164,11 @@ class PrototypeDynamicArrayDataSet(Dataset):
         return x
 
     def build_meta(self):
-        from tqdm import tqdm
+        from rich.progress import track
 
         print("Preparing meta data...")
         # Main function for building up meta data
-        for file in tqdm(self.all_csv_files):
+        for file in track(self.all_csv_files, description="Preparing meta data..."):
             glob_cls_name = self.get_glob_cls_name(file)
             events = parse_positive_events_train(file, glob_cls_name)
             if not events:
@@ -280,7 +280,7 @@ class PrototypeDynamicArrayDataSet(Dataset):
 def calculate_mean_std():
     import torch
     from omegaconf import OmegaConf
-    from tqdm import tqdm
+    from rich.progress import track
 
     from preprocessing.sequence_data.identity_sampler import IdentityBatchSampler
 
@@ -300,7 +300,7 @@ def calculate_mean_std():
     )
     loader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler, num_workers=0)
     # mean: 1.4421, std: 1.2201
-    for each in tqdm(loader):
+    for each in track(loader, description="Processing..."):
         x, x_neg, y, y_neg, class_name = each
         print("here")
         # import ipdb; ipdb.set_trace()
