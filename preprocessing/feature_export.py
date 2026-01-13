@@ -50,6 +50,8 @@ def export_features(
     force: bool = False,
 ) -> int:
     """Export per-audio feature arrays for training."""
+    if isinstance(splits, str):
+        splits = ("train", "val", "test") if splits == "all" else (splits,)
     suffixes = cfg.features.feature_types.split("@")
     unsupported = [s for s in suffixes if s not in SUPPORTED_SUFFIXES]
     if unsupported:
@@ -97,6 +99,8 @@ def validate_features(
     Returns:
         List of missing feature files for training.
     """
+    if isinstance(splits, str):
+        splits = ("train", "val", "test") if splits == "all" else (splits,)
     suffixes = cfg.features.feature_types.split("@")
     missing: List[Path] = []
 

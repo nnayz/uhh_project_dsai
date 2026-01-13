@@ -83,9 +83,13 @@ def export_features(exp_name, split, force, feature_types):
     overrides = [f"+exp_name={exp_name}"] if exp_name else []
     cfg = load_config(overrides)
     from preprocessing.feature_export import export_features
+    from preprocessing.feature_export import SUPPORTED_SUFFIXES
 
     if feature_types:
-        cfg.features.feature_types = feature_types
+        if feature_types == "all":
+            cfg.features.feature_types = "@".join(sorted(SUPPORTED_SUFFIXES))
+        else:
+            cfg.features.feature_types = feature_types
 
     splits = ["train", "val", "test"] if split == "all" else [split]
     written = export_features(cfg, splits=splits, force=force)
@@ -120,9 +124,13 @@ def check_features(exp_name, split, feature_types):
     overrides = [f"+exp_name={exp_name}"] if exp_name else []
     cfg = load_config(overrides)
     from preprocessing.feature_export import validate_features
+    from preprocessing.feature_export import SUPPORTED_SUFFIXES
 
     if feature_types:
-        cfg.features.feature_types = feature_types
+        if feature_types == "all":
+            cfg.features.feature_types = "@".join(sorted(SUPPORTED_SUFFIXES))
+        else:
+            cfg.features.feature_types = feature_types
 
     splits = ["train", "val", "test"] if split == "all" else [split]
     missing = validate_features(cfg, splits=splits)
