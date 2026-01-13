@@ -22,3 +22,9 @@ build/
 
 # dcase baseline
 .dcase_baseline/
+
+# Training outputs (keep checkpoints only)
+outputs/**
+!outputs/**/checkpoints/
+!outputs/**/checkpoints/**
+mlruns/

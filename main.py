@@ -70,11 +70,22 @@ def cli():
     default=False,
     help="Overwrite existing feature files",
 )
-def export_features(exp_name, split, force):
+@click.option(
+    "--type",
+    "-t",
+    "feature_types",
+    type=str,
+    required=False,
+    help="Feature types to export (e.g., logmel or logmel@pcen)",
+)
+def export_features(exp_name, split, force, feature_types):
     """Export per-audio feature .npy files for training."""
     overrides = [f"+exp_name={exp_name}"] if exp_name else []
     cfg = load_config(overrides)
     from preprocessing.feature_export import export_features
+
+    if feature_types:
+        cfg.features.feature_types = feature_types
 
     splits = ["train", "val", "test"] if split == "all" else [split]
     written = export_features(cfg, splits=splits, force=force)
@@ -96,17 +107,47 @@ def export_features(exp_name, split, force):
     default="all",
     help="Which split to validate",
 )
-def check_features(exp_name, split):
+@click.option(
+    "--type",
+    "-t",
+    "feature_types",
+    type=str,
+    required=False,
+    help="Feature types to validate (e.g., logmel or logmel@pcen)",
+)
+def check_features(exp_name, split, feature_types):
     """Check for missing feature files."""
     overrides = [f"+exp_name={exp_name}"] if exp_name else []
     cfg = load_config(overrides)
     from preprocessing.feature_export import validate_features
 
+    if feature_types:
+        cfg.features.feature_types = feature_types
+
     splits = ["train", "val", "test"] if split == "all" else [split]
     missing = validate_features(cfg, splits=splits)
+    suffixes = cfg.features.feature_types.split("@")
+    missing_by_suffix = {s: 0 for s in suffixes}
+    for path in missing:
+        name = path.name
+        for suffix in suffixes:
+            if name.endswith(f"_{suffix}.npy"):
+                missing_by_suffix[suffix] += 1
+                break
     if not missing:
         logger.info(f"All feature files present for splits: {splits}")
+        for suffix in ("logmel", "pcen"):
+            if suffix in suffixes:
+                logger.info(f"{suffix} features available")
         return
+    for suffix in ("logmel", "pcen"):
+        if suffix in suffixes:
+            if missing_by_suffix.get(suffix, 0) == 0:
+                logger.info(f"{suffix} features available")
+            else:
+                logger.warning(
+                    f"{suffix} features missing for {missing_by_suffix[suffix]} files"
+                )
     logger.warning(f"Missing {len(missing)} feature files. Example:")
     for path in missing[:10]:
         logger.warning(f"  {path}")
@@ -281,7 +322,7 @@ def list_all_audio_files():
 
 
 @cli.command("train", help="Train model with PyTorch Lightning (Phase 2)")
-@click.argument("arch", type=click.Choice(["v1", "v2"]), default="v1")
+@click.argument("arch", type=click.Choice(["v1", "v2", "v3"]), default="v1")
 @click.option(
     "--exp-name",
     "-e",
@@ -294,7 +335,7 @@ def train(arch, exp_name, overrides):
     """
     Train the model with PyTorch Lightning.
 
-    ARCH: Architecture to use ('v1' or 'v2')
+    ARCH: Architecture to use ('v1', 'v2', or 'v3')
 
     --exp-name: Experiment name for this run (required)
 
@@ -327,7 +368,11 @@ def train(arch, exp_name, overrides):
 @cli.command("test", help="Test a trained model")
 @click.argument("checkpoint", type=click.Path(exists=True))
 @click.option(
-    "--arch", "-a", type=click.Choice(["v1"]), default="v1", help="Architecture type"
+    "--arch",
+    "-a",
+    type=click.Choice(["v1", "v2", "v3"]),
+    default="v1",
+    help="Architecture type",
 )
 @click.argument("overrides", nargs=-1)
 def test(checkpoint, arch, overrides):

@@ -27,7 +27,9 @@ class PrototypeDynamicArrayDataSet(Dataset):
         self.samples_per_cls = train_param.n_shot * 2
         self.seg_len = train_param.seg_len
         self.fe = Feature_Extractor(
-            self.features, audio_path=[path.train_dir, path.eval_dir]
+            self.features,
+            audio_path=[path.train_dir, path.eval_dir],
+            stats_audio_path=[path.train_dir],
         )  # TODO here only training set
 
         print(

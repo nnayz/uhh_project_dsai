@@ -22,15 +22,20 @@ def recursive_glob(
 class Feature_Extractor:
     mean_std = {}
 
-    def __init__(self, features, audio_path=[]):
+    def __init__(self, features, audio_path=None, stats_audio_path=None):
         self.sr = features.sr
         self.n_fft = features.n_fft
         self.hop = features.hop_mel
         self.n_mels = features.n_mels
         self.fmax = features.fmax
         self.feature_types = features.feature_types.split("@")
+        if audio_path is None:
+            audio_path = []
+        if stats_audio_path is None:
+            stats_audio_path = audio_path
         self.files = []
-        for each in audio_path:
+        # stats_audio_path is the sole source for normalization statistics.
+        for each in stats_audio_path:
             if each is not None:
                 assert os.path.exists(each), "Path not found: %s" % each
             print("Looking for data in: ", os.path.abspath(each))
@@ -38,13 +43,18 @@ class Feature_Extractor:
             self.files += data
             print("Find %s audio files" % (len(data)))
 
-        self.files = np.random.permutation(self.files)
+        self.files = sorted(self.files)
         self.update_mean_std()
         self.feature_lens = []
 
     def update_mean_std(self, feature_types=None):
         if len(list(Feature_Extractor.mean_std.keys())) != 0:
             return
+        if not self.files:
+            raise RuntimeError(
+                "No audio files found for mean/std computation. "
+                "Pass stats_audio_path pointing to the training set."
+            )
         print("Calculating mean and std")
         for suffix in self.feature_types if (feature_types is None) else feature_types:
             print("Calculating: ", suffix)

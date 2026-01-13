@@ -65,11 +65,15 @@ class PrototypeAdaSeglenBetterNegTestSetV2(Dataset):
 
         if path.test_dir is not None:
             self.fe = Feature_Extractor(
-                self.features, audio_path=[path.train_dir, path.eval_dir, path.test_dir]
+                self.features,
+                audio_path=[path.train_dir, path.eval_dir, path.test_dir],
+                stats_audio_path=[path.train_dir],
             )
         else:
             self.fe = Feature_Extractor(
-                self.features, audio_path=[path.train_dir, path.eval_dir]
+                self.features,
+                audio_path=[path.train_dir, path.eval_dir],
+                stats_audio_path=[path.train_dir],
             )
 
         extension = "*.csv"

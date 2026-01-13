@@ -4,7 +4,6 @@ from glob import glob
 from itertools import chain
 import time
 import h5py
-import librosa
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
@@ -12,6 +11,8 @@ import torch.nn as nn
 import torch
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import soundfile as sf
+import wave
 
 from preprocessing.sequence_data.Datagenerator import Datagen_test
 from preprocessing.sequence_data.pcen import Feature_Extractor
@@ -32,11 +33,15 @@ class PrototypeDynamicArrayDataSetVal(Dataset):
         self.seg_len = train_param.seg_len
         if path.test_dir is not None:
             self.fe = Feature_Extractor(
-                self.features, audio_path=[path.train_dir, path.eval_dir, path.test_dir]
+                self.features,
+                audio_path=[path.train_dir, path.eval_dir, path.test_dir],
+                stats_audio_path=[path.train_dir],
             )
         else:
             self.fe = Feature_Extractor(
-                self.features, audio_path=[path.train_dir, path.eval_dir]
+                self.features,
+                audio_path=[path.train_dir, path.eval_dir],
+                stats_audio_path=[path.train_dir],
             )
 
         print(
@@ -77,6 +82,15 @@ class PrototypeDynamicArrayDataSetVal(Dataset):
         self.eval_class_idxs = [
             self.classes2int[x] for x in self.eval_classes if (x in self.classes)
         ]
+
+    @staticmethod
+    def _get_audio_duration(audio_path: str) -> float:
+        try:
+            info = sf.info(audio_path)
+            return info.frames / float(info.samplerate)
+        except Exception:
+            with wave.open(audio_path, "rb") as wav:
+                return wav.getnframes() / float(wav.getframerate())
 
     def __len__(self):
         # Every two hours of positive data
@@ -236,7 +250,7 @@ class PrototypeDynamicArrayDataSetVal(Dataset):
                 self.meta[clss]["neg_file"] = []  # filename
 
             self.meta[clss]["total_audio_duration"].append(
-                librosa.get_duration(filename=audio_path, sr=None)
+                self._get_audio_duration(audio_path)
             )
             neg_start, neg_end = np.clip(
                 self.meta[clss]["neg_start_time"] - 0.025, a_min=0, a_max=None
