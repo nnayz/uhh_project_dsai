@@ -511,11 +511,12 @@ def main(cfg: DictConfig) -> None:
             precision=precision,
             callbacks=callbacks,
             logger=pl_loggers,
+            default_root_dir=str(log_dir),  # Sets trainer.log_dir for lightning modules
             log_every_n_steps=10,
             enable_progress_bar=True,
             num_sanity_val_steps=0,
             gradient_clip_val=cfg.arch.training.gradient_clip_val,
-            deterministic="warn",  # Enable deterministic mode for reproducibility, warn only for ops without deterministic CUDA implementations
+            deterministic="warn",  # Warn on non-deterministic ops instead of error
         )
 
         # Skip training if in test-only mode
