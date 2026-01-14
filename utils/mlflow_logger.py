@@ -7,6 +7,7 @@ and falls back to console output when not.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -18,6 +19,9 @@ try:
     MLFLOW_AVAILABLE = True
 except ImportError:
     MLFLOW_AVAILABLE = False
+
+# Get logger for this module - will be captured by Hydra's job_logging
+logger = logging.getLogger(__name__)
 
 
 class MLFlowLoggerWrapper:
@@ -99,7 +103,7 @@ class MLFlowLoggerWrapper:
                 mlflow.log_param(key, value)
             except Exception as e:
                 self.warning(f"Failed to log param {key}: {e}")
-        print(f"[PARAM] {key}: {value}")
+        logger.info(f"[PARAM] {key}: {value}")
 
     def log_params(self, params: Dict[str, Any]):
         """Log multiple parameters."""
@@ -111,7 +115,7 @@ class MLFlowLoggerWrapper:
             except Exception as e:
                 self.warning(f"Failed to log params: {e}")
         for key, value in params.items():
-            print(f"[PARAM] {key}: {value}")
+            logger.info(f"[PARAM] {key}: {value}")
 
     def log_metric(self, key: str, value: float, step: Optional[int] = None):
         """Log a single metric."""
@@ -122,9 +126,9 @@ class MLFlowLoggerWrapper:
                 self.warning(f"Failed to log metric {key}: {e}")
 
         if step is not None:
-            print(f"[METRIC] {key}: {value} (step={step})")
+            logger.info(f"[METRIC] {key}: {value} (step={step})")
         else:
-            print(f"[METRIC] {key}: {value}")
+            logger.info(f"[METRIC] {key}: {value}")
 
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None):
         """Log multiple metrics."""
@@ -136,9 +140,9 @@ class MLFlowLoggerWrapper:
 
         for key, value in metrics.items():
             if step is not None:
-                print(f"[METRIC] {key}: {value} (step={step})")
+                logger.info(f"[METRIC] {key}: {value} (step={step})")
             else:
-                print(f"[METRIC] {key}: {value}")
+                logger.info(f"[METRIC] {key}: {value}")
 
     def set_tag(self, key: str, value: str):
         """Set a single tag."""
@@ -147,7 +151,7 @@ class MLFlowLoggerWrapper:
                 mlflow.set_tag(key, value)
             except Exception as e:
                 self.warning(f"Failed to set tag {key}: {e}")
-        print(f"[TAG] {key}: {value}")
+        logger.info(f"[TAG] {key}: {value}")
 
     def set_tags(self, tags: Dict[str, str]):
         """Set multiple tags."""
@@ -157,7 +161,7 @@ class MLFlowLoggerWrapper:
             except Exception as e:
                 self.warning(f"Failed to set tags: {e}")
         for key, value in tags.items():
-            print(f"[TAG] {key}: {value}")
+            logger.info(f"[TAG] {key}: {value}")
 
     def log_artifact(self, local_path: str, artifact_path: Optional[str] = None):
         """Log an artifact file."""
@@ -165,13 +169,13 @@ class MLFlowLoggerWrapper:
             try:
                 if Path(local_path).exists():
                     mlflow.log_artifact(local_path, artifact_path)
-                    print(f"[ARTIFACT] Logged: {local_path}")
+                    logger.info(f"[ARTIFACT] Logged: {local_path}")
                 else:
                     self.warning(f"Artifact not found: {local_path}")
             except Exception as e:
                 self.warning(f"Failed to log artifact {local_path}: {e}")
         else:
-            print(f"[ARTIFACT] {local_path}")
+            logger.info(f"[ARTIFACT] {local_path}")
 
     def log_artifacts(self, local_dir: str, artifact_path: Optional[str] = None):
         """Log all files in a directory as artifacts."""
@@ -179,51 +183,51 @@ class MLFlowLoggerWrapper:
             try:
                 if Path(local_dir).exists():
                     mlflow.log_artifacts(local_dir, artifact_path)
-                    print(f"[ARTIFACTS] Logged directory: {local_dir}")
+                    logger.info(f"[ARTIFACTS] Logged directory: {local_dir}")
                 else:
                     self.warning(f"Artifacts directory not found: {local_dir}")
             except Exception as e:
                 self.warning(f"Failed to log artifacts from {local_dir}: {e}")
         else:
-            print(f"[ARTIFACTS] {local_dir}")
+            logger.info(f"[ARTIFACTS] {local_dir}")
 
     def log_dict(self, dictionary: Dict, artifact_file: str):
         """Log a dictionary as a JSON artifact."""
         if self.use_mlflow and self._run_started:
             try:
                 mlflow.log_dict(dictionary, artifact_file)
-                print(f"[DICT] Logged to: {artifact_file}")
+                logger.info(f"[DICT] Logged to: {artifact_file}")
             except Exception as e:
                 self.warning(f"Failed to log dict to {artifact_file}: {e}")
         else:
-            print(f"[DICT] {artifact_file}: {dictionary}")
+            logger.info(f"[DICT] {artifact_file}: {dictionary}")
 
     def log_figure(self, figure, artifact_file: str):
         """Log a matplotlib figure as an artifact."""
         if self.use_mlflow and self._run_started:
             try:
                 mlflow.log_figure(figure, artifact_file)
-                print(f"[FIGURE] Logged: {artifact_file}")
+                logger.info(f"[FIGURE] Logged: {artifact_file}")
             except Exception as e:
                 self.warning(f"Failed to log figure to {artifact_file}: {e}")
         else:
-            print(f"[FIGURE] {artifact_file}")
+            logger.info(f"[FIGURE] {artifact_file}")
 
     def info(self, message: str):
         """Log an info message."""
-        print(f"[INFO] {message}")
+        logger.info(message)
 
     def warning(self, message: str):
         """Log a warning message."""
-        print(f"[WARNING] {message}")
+        logger.warning(message)
 
     def error(self, message: str):
         """Log an error message."""
-        print(f"[ERROR] {message}")
+        logger.error(message)
 
     def debug(self, message: str):
         """Log a debug message."""
-        print(f"[DEBUG] {message}")
+        logger.debug(message)
 
     @property
     def is_mlflow_available(self) -> bool:

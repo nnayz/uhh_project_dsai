@@ -38,7 +38,11 @@ class PrototypeTestSet(Dataset):
         self.train_param = train_param
         self.eval_param = eval_param
         self.fps = self.features.sr / self.features.hop_mel
-        self.fe = Feature_Extractor(self.features)
+        self.fe = Feature_Extractor(
+            self.features,
+            audio_path=[self.path.train_dir, self.path.eval_dir, self.path.test_dir],
+            stats_audio_path=[self.path.train_dir],
+        )
 
         extension = "*.csv"
         self.all_csv_files = [
@@ -161,7 +165,7 @@ class PrototypeTestSet(Dataset):
 if __name__ == "__main__":
     import torch
     from omegaconf import OmegaConf
-    from tqdm import tqdm
+    from rich.progress import track
 
     from preprocessing.sequence_data.identity_sampler import IdentityBatchSampler
 
@@ -169,6 +173,6 @@ if __name__ == "__main__":
 
     conf = OmegaConf.load("/vol/research/dcase2022/project/hhlab/configs/train.yaml")
     testset = PrototypeTestSet(conf.path, conf.features, conf.train_param)
-    for (X_pos, X_neg, X_query, hop_seg), strt_index_query, audio_path in tqdm(testset):
+    for (X_pos, X_neg, X_query, hop_seg), strt_index_query, audio_path in track(testset, description="Testing..."):
         # import ipdb; ipdb.set_trace()
         pass

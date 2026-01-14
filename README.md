@@ -15,6 +15,8 @@ source .venv/bin/activate  # On Linux/Mac
 
 # 1. Export per-audio feature arrays (run once)
 g5 export-features --split all
+# To export both logmel and pcen
+g5 export-features --split all --type logmel@pcen
 
 # 2. Train the model
 g5 train v1 --exp-name my_experiment

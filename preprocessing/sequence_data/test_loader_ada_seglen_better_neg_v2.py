@@ -65,11 +65,15 @@ class PrototypeAdaSeglenBetterNegTestSetV2(Dataset):
 
         if path.test_dir is not None:
             self.fe = Feature_Extractor(
-                self.features, audio_path=[path.train_dir, path.eval_dir, path.test_dir]
+                self.features,
+                audio_path=[path.train_dir, path.eval_dir, path.test_dir],
+                stats_audio_path=[path.train_dir],
             )
         else:
             self.fe = Feature_Extractor(
-                self.features, audio_path=[path.train_dir, path.eval_dir]
+                self.features,
+                audio_path=[path.train_dir, path.eval_dir],
+                stats_audio_path=[path.train_dir],
             )
 
         extension = "*.csv"
@@ -233,11 +237,10 @@ class PrototypeAdaSeglenBetterNegTestSetV2(Dataset):
         return feat_pos, feat_neg, feat_query, strt_indx_query
 
     def negative_onset_offset_estimate(self, audio_path, start_time, end_time):
-        x, sr = librosa.load(audio_path, sr=None)
-        assert sr == 22050
+        x, sr = librosa.load(audio_path, sr=self.features.sr)
         rms = librosa.feature.rms(
-            y=x, frame_length=1024, hop_length=256
-        )  # TODO hard code here
+            y=x, frame_length=self.features.n_fft, hop_length=self.features.hop_mel
+        )
         rms = rms[0, ...]
 
         # Try range limit
@@ -511,7 +514,7 @@ class PrototypeAdaSeglenBetterNegTestSetV2(Dataset):
 if __name__ == "__main__":
     import torch
     from omegaconf import OmegaConf
-    from tqdm import tqdm
+    from rich.progress import track
 
     from preprocessing.sequence_data.identity_sampler import IdentityBatchSampler
 
@@ -539,7 +542,7 @@ if __name__ == "__main__":
         audio_path,
         mask,
         _,
-    ) in tqdm(testset):
+    ) in track(testset, description="Testing..."):
         # import ipdb; ipdb.set_trace()
         pass
         # print(X_pos.shape, X_neg.shape, X_query.shape, X_pos_neg.shape, X_neg_neg.shape, X_query_neg.shape, hop_seg,hop_seg_neg, max_len, strt_index_query, audio_path)

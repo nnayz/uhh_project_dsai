@@ -22,3 +22,15 @@ build/
 
 # dcase baseline
 .dcase_baseline/
+
+# Training outputs (keep checkpoints only)
+outputs/**
+!outputs/mlflow_experiments/
+!outputs/mlflow_experiments/**/
+!outputs/mlflow_experiments/**/checkpoints/
+!outputs/mlflow_experiments/**/checkpoints/**
+mlruns/
+
+
+# legacy baseline implementation
+archs/baseline

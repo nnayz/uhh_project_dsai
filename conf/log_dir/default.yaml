@@ -4,8 +4,25 @@
 # Hydra output directory pattern
 hydra:
   run:
-    dir: outputs/${name}/${now:%Y-%m-%d_%H-%M-%S}
+    dir: outputs/${name}/${exp_name}
   sweep:
     dir: outputs/${name}/multirun/${now:%Y-%m-%d_%H-%M-%S}
     subdir: ${hydra.job.num}
+  job_logging:
+    root:
+      level: INFO
+      handlers: [console, file]
+    handlers:
+      console:
+        class: logging.StreamHandler
+        formatter: simple
+        stream: ext://sys.stdout
+      file:
+        class: logging.FileHandler
+        formatter: simple
+        filename: train.log
+    formatters:
+      simple:
+        format: '[%(asctime)s][%(levelname)s] - %(message)s'
+        datefmt: '%Y-%m-%d %H:%M:%S'
 

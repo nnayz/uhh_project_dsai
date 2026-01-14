@@ -59,16 +59,27 @@ class DCASEFewShotDataModule(L.LightningDataModule):
         self.train_loader = None
         self.val_loader = None
 
+        self._is_setup = False
         self.save_hyperparameters(ignore=["cfg"])
-        self.init()
 
     def prepare_data(self) -> None:
         """Validate that required feature files exist."""
         from preprocessing.feature_export import validate_features
 
 
-        # Check that required feature files exist. 
-        missing = validate_features(self.cfg)
+        # Check only the splits that will be used.
+        splits = []
+        if getattr(self.cfg, "train", False):
+            splits.extend(["train", "val"])
+        if getattr(self.cfg, "test", False):
+            splits.append("val")
+            if getattr(self.cfg.path, "test_dir", None):
+                splits.append("test")
+        splits = list(dict.fromkeys(splits))
+        if not splits:
+            return
+
+        missing = validate_features(self.cfg, splits=splits)
         if missing:
             sample = "\n".join(str(p) for p in missing[:10])
             raise RuntimeError(
@@ -76,83 +87,98 @@ class DCASEFewShotDataModule(L.LightningDataModule):
             )
 
     def setup(self, stage: Optional[str] = None) -> None:
-        pass
+        if self._is_setup and stage is None:
+            return
+        num_workers = int(getattr(self.cfg.runtime, "num_workers", 0))
 
-    def init(self, stage: Optional[str] = None) -> None:
-        """Initialize datasets and loaders to match reference training behavior."""
-        # Get the training dataset. 
-        if self.train_param.use_validation_first_5:
-            self.dataset = PrototypeDynamicArrayDataSetWithEval(
+        if stage in (None, "fit"):
+            # Get the training dataset.
+            if self.train_param.use_validation_first_5:
+                self.dataset = PrototypeDynamicArrayDataSetWithEval(
+                    path=self.path,
+                    features=self.features,
+                    train_param=self.train_param,
+                )
+            else:
+                self.dataset = PrototypeDynamicArrayDataSet(
+                    path=self.path,
+                    features=self.features,
+                    train_param=self.train_param,
+                )
+
+            self.sampler = IdentityBatchSampler(
+                self.train_param,
+                self.dataset.train_eval_class_idxs,
+                self.dataset.extra_train_class_idxs,
+                batch_size=self.train_param.n_shot * 2,
+                n_episode=int(
+                    len(self.dataset)
+                    / (self.train_param.k_way * self.train_param.n_shot * 2)
+                ),
+            )
+            self.train_loader = torch.utils.data.DataLoader(
+                self.dataset,
+                batch_sampler=self.sampler,
+                num_workers=num_workers,
+            )
+
+        if stage in (None, "fit", "validate"):
+            self.val_dataset = PrototypeDynamicArrayDataSetVal(
                 path=self.path,
                 features=self.features,
                 train_param=self.train_param,
             )
-        else:
-            self.dataset = PrototypeDynamicArrayDataSet(
-                path=self.path,
-                features=self.features,
-                train_param=self.train_param,
-            )
-
-        self.sampler = IdentityBatchSampler(
-            self.train_param,
-            self.dataset.train_eval_class_idxs,
-            self.dataset.extra_train_class_idxs,
-            batch_size=self.train_param.n_shot * 2,
-            n_episode=int(
-                len(self.dataset)
-                / (self.train_param.k_way * self.train_param.n_shot * 2)
-            ),
-        )
-        self.train_loader = torch.utils.data.DataLoader(
-            self.dataset, batch_sampler=self.sampler, num_workers=2
-        )
-
-        self.val_dataset = PrototypeDynamicArrayDataSetVal(
-            path=self.path,
-            features=self.features,
-            train_param=self.train_param,
-        )
-        self.val_sampler = IdentityBatchSampler(
-            self.train_param,
-            self.val_dataset.eval_class_idxs,
-            [],
-            batch_size=self.train_param.n_shot * 2,
-            n_episode=int(
-                len(self.val_dataset)
-                / (self.train_param.k_way * self.train_param.n_shot * 2)
-            ),
-        )
-        self.val_loader = torch.utils.data.DataLoader(
-            self.val_dataset, batch_sampler=self.val_sampler, num_workers=2
-        )
-
-        if self.train_param.adaptive_seg_len:
-            self.data_test = PrototypeAdaSeglenBetterNegTestSetV2(
-                self.path,
-                self.features,
+            self.val_sampler = IdentityBatchSampler(
                 self.train_param,
-                self.eval_param,
+                self.val_dataset.eval_class_idxs,
+                [],
+                batch_size=self.train_param.n_shot * 2,
+                n_episode=int(
+                    len(self.val_dataset)
+                    / (self.train_param.k_way * self.train_param.n_shot * 2)
+                ),
             )
-        else:
-            self.data_test = PrototypeTestSet(
-                self.path,
-                self.features,
-                self.train_param,
-                self.eval_param,
+            self.val_loader = torch.utils.data.DataLoader(
+                self.val_dataset,
+                batch_sampler=self.val_sampler,
+                num_workers=num_workers,
             )
+
+        if stage in (None, "test", "validate"):
+            if self.train_param.adaptive_seg_len:
+                self.data_test = PrototypeAdaSeglenBetterNegTestSetV2(
+                    self.path,
+                    self.features,
+                    self.train_param,
+                    self.eval_param,
+                )
+            else:
+                self.data_test = PrototypeTestSet(
+                    self.path,
+                    self.features,
+                    self.train_param,
+                    self.eval_param,
+                )
+
+        self._is_setup = True
 
     def train_dataloader(self):
+        if self.train_loader is None:
+            self.setup(stage="fit")
         return self.train_loader
 
     def val_dataloader(self):
+        if self.val_loader is None:
+            self.setup(stage="validate")
         return self.val_loader
 
     def test_dataloader(self):
+        if self.data_test is None:
+            self.setup(stage="test")
         return DataLoader(
             dataset=self.data_test,
             batch_size=1,
-            num_workers=0,
+            num_workers=int(getattr(self.cfg.runtime, "num_workers", 0)),
             pin_memory=True,
             shuffle=False,
         )

@@ -149,6 +149,11 @@ Use this path when training with the sequence-sampling datamodule.
 g5 export-features
 ```
 
+```bash
+# Export both logmel and pcen
+g5 export-features --split all --type logmel@pcen
+```
+
 ### Options
 
 ```bash
@@ -159,11 +164,17 @@ g5 export-features [OPTIONS]
 |--------|-------------|---------|
 | `--split`, `-s` | Split to export (train/val/test/all) | all |
 | `--force`, `-f` | Overwrite existing files | false |
+| `--type`, `-t` | Feature types to export (e.g., logmel or logmel@pcen) | config default |
 
 ### Validate Exports
 
 ```bash
 g5 check-features
+```
+
+```bash
+# Validate specific feature types
+g5 check-features --type logmel@pcen
 ```
 
 ### Output Location

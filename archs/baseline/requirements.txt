@@ -1,9 +1,0 @@
-torch
-torchaudio
-librosa
-soundfile
-numpy
-scikit-learn
-scipy
-tqdm
-matplotlib

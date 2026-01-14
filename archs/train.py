@@ -13,16 +13,18 @@ Usage:
 from __future__ import annotations
 
 import os
+import random
 import warnings
 from pathlib import Path
 from typing import List, Type
 
 os.environ.setdefault("NUMBA_DISABLE_CACHING", "1")
 os.environ.setdefault("NUMBA_DISABLE_JIT", "1")
+os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")  # For CUDA >= 10.2 determinism
 
 import hydra
 import lightning as L
-from lightning import seed_everything
+import numpy as np
 import torch
 from hydra.utils import instantiate
 import omegaconf
@@ -36,9 +38,20 @@ from utils.resolve_device import resolve_device
 # Get global MLflow logger
 mf_logger = get_logger()
 
+# Deterministic settings for PyTorch
 torch.use_deterministic_algorithms(True, warn_only=True)
 torch.backends.cudnn.deterministic = True
-torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.benchmark = False  # Must be False for determinism
+
+
+def set_seed(seed: int):
+    """Set random seed for all random number generators for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # For multi-GPU
+    os.environ["PYTHONHASHSEED"] = str(seed)
 
 
 def get_lightning_module(arch_name: str) -> Type[L.LightningModule]:
@@ -51,8 +64,12 @@ def get_lightning_module(arch_name: str) -> Type[L.LightningModule]:
         from archs.v2.lightning_module import ProtoNetV2LightningModule
 
         return ProtoNetV2LightningModule
+    elif arch_name == "v3":
+        from archs.v3.lightning_module import ProtoNetV3LightningModule
+
+        return ProtoNetV3LightningModule
     else:
-        raise ValueError(f"Unknown architecture: {arch_name}. Supported: v1, v2")
+        raise ValueError(f"Unknown architecture: {arch_name}. Supported: v1, v2, v3")
 
 
 def build_model(cfg: DictConfig) -> L.LightningModule:
@@ -102,6 +119,30 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
             time_mask_pct=cfg.arch.augmentation.time_mask_pct,
             freq_mask_pct=cfg.arch.augmentation.freq_mask_pct,
         )
+    elif arch_name == "v3":
+        model = module_class(
+            emb_dim=cfg.arch.model.embedding_dim,
+            distance=cfg.arch.model.distance,
+            n_mels=cfg.features.n_mels,
+            patch_freq=cfg.arch.model.patch_freq,
+            patch_time=cfg.arch.model.patch_time,
+            max_time_bins=cfg.arch.model.max_time_bins,
+            depth=cfg.arch.model.depth,
+            num_heads=cfg.arch.model.num_heads,
+            mlp_dim=cfg.arch.model.mlp_dim,
+            dropout=cfg.arch.model.dropout,
+            pooling=cfg.arch.model.pooling,
+            lr=cfg.arch.training.learning_rate,
+            weight_decay=cfg.arch.training.weight_decay,
+            scheduler_gamma=cfg.arch.training.scheduler_gamma,
+            scheduler_step_size=cfg.arch.training.scheduler_step_size,
+            scheduler_type=cfg.arch.training.scheduler,
+            warmup_epochs=cfg.arch.training.warmup_epochs,
+            max_epochs=cfg.arch.training.max_epochs,
+            num_classes=cfg.arch.episodes.n_way,
+            n_shot=cfg.train_param.n_shot,
+            negative_train_contrast=cfg.train_param.negative_train_contrast,
+        )
     else:
         raise ValueError(f"Unknown architecture: {arch_name}")
 
@@ -131,6 +172,21 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
                 "augmentation/freq_mask": cfg.arch.augmentation.freq_mask_pct,
             }
         )
+    elif arch_name == "v3":
+        mf_logger.log_params(
+            {
+                "model/embedding_dim": cfg.arch.model.embedding_dim,
+                "model/distance": cfg.arch.model.distance,
+                "model/patch_freq": cfg.arch.model.patch_freq,
+                "model/patch_time": cfg.arch.model.patch_time,
+                "model/max_time_bins": cfg.arch.model.max_time_bins,
+                "model/depth": cfg.arch.model.depth,
+                "model/num_heads": cfg.arch.model.num_heads,
+                "model/mlp_dim": cfg.arch.model.mlp_dim,
+                "model/dropout": cfg.arch.model.dropout,
+                "model/pooling": cfg.arch.model.pooling,
+            }
+        )
 
     return model
 
@@ -148,18 +204,26 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
         if hasattr(callbacks_cfg, "model_checkpoint"):
             try:
                 checkpoint = instantiate(callbacks_cfg.model_checkpoint)
+                # Enforce best + last checkpoint saving; monitor is configured via Hydra.
+                checkpoint.save_top_k = 1
+                checkpoint.save_last = True
+                
                 callbacks.append(checkpoint)
-                mf_logger.info("Instantiated ModelCheckpoint from config")
+                mf_logger.info(f"Instantiated ModelCheckpoint from config (monitor={checkpoint.monitor}, save_top_k={checkpoint.save_top_k}, save_last={checkpoint.save_last})")
             except Exception as e:
                 mf_logger.warning(f"Failed to instantiate ModelCheckpoint: {e}")
                 from lightning.pytorch.callbacks import ModelCheckpoint
 
+                # Fallback: use checkpoint config settings
+                monitor = cfg.checkpoint.monitor if hasattr(cfg, "checkpoint") else "val/acc"
+                mode = cfg.checkpoint.mode if hasattr(cfg, "checkpoint") else "max"
+
                 callbacks.append(
                     ModelCheckpoint(
-                        monitor="val_acc",
-                        mode="max",
+                        monitor=monitor,
+                        mode=mode,
                         dirpath=str(ckpt_dir),
-                        filename=f"{cfg.arch.name}_{{epoch:03d}}_{{val_acc:.4f}}",
+                        filename="best",
                         save_top_k=1,
                         save_last=True,
                     )
@@ -168,16 +232,21 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
         if hasattr(callbacks_cfg, "early_stopping"):
             try:
                 early_stop = instantiate(callbacks_cfg.early_stopping)
+                # Monitor is configured via Hydra.
                 callbacks.append(early_stop)
-                mf_logger.info("Instantiated EarlyStopping from config")
+                mf_logger.info(f"Instantiated EarlyStopping from config (monitor={early_stop.monitor})")
             except Exception as e:
                 mf_logger.warning(f"Failed to instantiate EarlyStopping: {e}")
                 from lightning.pytorch.callbacks import EarlyStopping
 
+                # Fallback: use checkpoint config settings
+                monitor = cfg.checkpoint.monitor if hasattr(cfg, "checkpoint") else "val/acc"
+                mode = cfg.checkpoint.mode if hasattr(cfg, "checkpoint") else "max"
+
                 callbacks.append(
                     EarlyStopping(
-                        monitor="val_acc",
-                        mode="max",
+                        monitor=monitor,
+                        mode=mode,
                         patience=10,
                     )
                 )
@@ -206,20 +275,25 @@ def build_callbacks(cfg: DictConfig) -> List[L.Callback]:
             RichProgressBar,
         )
 
+        # Use checkpoint config settings
+        monitor = cfg.checkpoint.monitor if hasattr(cfg, "checkpoint") else "val/acc"
+        mode = cfg.checkpoint.mode if hasattr(cfg, "checkpoint") else "max"
+
         callbacks.append(
             ModelCheckpoint(
-                monitor="val_acc",
-                mode="max",
+                monitor=monitor,
+                mode=mode,
                 dirpath=str(ckpt_dir),
-                filename=f"{cfg.arch.name}_{{epoch:03d}}_{{val_acc:.4f}}",
-                save_top_k=1,
-                save_last=True,
+                filename="best",
+                save_top_k=1,  # Only save the best checkpoint
+                save_last=True,  # Also save the last checkpoint
             )
         )
+
         callbacks.append(
             EarlyStopping(
-                monitor="val_acc",
-                mode="max",
+                monitor=monitor,
+                mode=mode,
                 patience=10,
             )
         )
@@ -236,7 +310,7 @@ def build_pl_loggers(cfg: DictConfig) -> List:
     log_dir = Path(cfg.runtime.log_dir)
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    # Always try to use MLflow logger for Lightning
+    # Use MLflow logger for experiment tracking
     try:
         from lightning.pytorch.loggers import MLFlowLogger as PLMLFlowLogger
 
@@ -391,7 +465,9 @@ def main(cfg: DictConfig) -> None:
         )
 
         if cfg.seed is not None:
+            set_seed(cfg.seed)
             L.seed_everything(cfg.seed, workers=True)
+            mf_logger.info(f"Random seed set to {cfg.seed} for deterministic training")
 
         # Allow test-only mode if checkpoint is provided
         test_only_mode = (
@@ -432,10 +508,12 @@ def main(cfg: DictConfig) -> None:
             precision=precision,
             callbacks=callbacks,
             logger=pl_loggers,
+            default_root_dir=str(log_dir),  # Sets trainer.log_dir for lightning modules
             log_every_n_steps=10,
             enable_progress_bar=True,
             num_sanity_val_steps=0,
             gradient_clip_val=cfg.arch.training.gradient_clip_val,
+            deterministic="warn",  # Warn on non-deterministic ops instead of error
         )
 
         # Skip training if in test-only mode
@@ -448,16 +526,18 @@ def main(cfg: DictConfig) -> None:
 
         # Find and log best checkpoint
         best_ckpt = None
-        checkpoint_callback = None
+        ckpt_callback = None
         for callback in callbacks:
             # Check if this is a ModelCheckpoint callback
             from lightning.pytorch.callbacks import ModelCheckpoint
 
             if isinstance(callback, ModelCheckpoint):
-                checkpoint_callback = callback
                 best_ckpt = callback.best_model_path
+                ckpt_callback = callback
                 break
 
+        ckpt_dir = Path(cfg.runtime.ckpt_dir)
+        
         if best_ckpt:
             mf_logger.info(f"Best model saved to: {best_ckpt}")
             mf_logger.set_tag("best_checkpoint", best_ckpt)
@@ -469,10 +549,106 @@ def main(cfg: DictConfig) -> None:
                 mf_logger.warning(
                     f"Best checkpoint path exists but file not found: {best_ckpt}"
                 )
+            
+            # Write best checkpoint info file
+            import json
+            
+            # Load best checkpoint to get the epoch it was saved at and its metrics
+            best_ckpt_data = torch.load(best_ckpt, map_location="cpu")
+            best_epoch = best_ckpt_data.get("epoch", None)
+            
+            # Extract metrics from the checkpoint (these are from the best epoch)
+            # PyTorch Lightning stores logged metrics in 'loops' -> 'fit_loop' -> 'epoch_loop' -> '_batches_that_stepped'
+            # or in older versions in different locations. We'll try multiple approaches.
+            best_epoch_metrics = {}
+            
+            # Try to extract from 'loops' structure (newer Lightning versions)
+            if "loops" in best_ckpt_data:
+                loops = best_ckpt_data["loops"]
+                if isinstance(loops, dict) and "fit_loop" in loops:
+                    fit_loop = loops["fit_loop"]
+                    if isinstance(fit_loop, dict) and "epoch_progress" in fit_loop:
+                        # This gives us confirmation we're at the right epoch
+                        pass
+            
+            # Try 'callbacks' for ModelCheckpoint stored metrics
+            if "callbacks" in best_ckpt_data:
+                for cb_key, cb_state in best_ckpt_data["callbacks"].items():
+                    if isinstance(cb_state, dict):
+                        # ModelCheckpoint stores best_model_score
+                        if "best_model_score" in cb_state and cb_state["best_model_score"] is not None:
+                            best_epoch_metrics["best_model_score"] = float(cb_state["best_model_score"])
+            
+            # The most reliable approach: reload the model and get its logged metrics
+            # Since the checkpoint was saved at the best epoch, we can use the trainer's
+            # logged_metrics from that checkpoint by loading it
+            
+            # Alternative: Use hyper_parameters if stored
+            if "hyper_parameters" in best_ckpt_data:
+                hp = best_ckpt_data["hyper_parameters"]
+                # Some implementations store metrics here
+            
+            # If we couldn't extract metrics from checkpoint structure, 
+            # use the current trainer metrics but note they're from final epoch
+            if not best_epoch_metrics or len(best_epoch_metrics) <= 1:
+                # Fall back to current callback_metrics but mark them
+                if hasattr(trainer, "callback_metrics"):
+                    best_epoch_metrics = {
+                        k: float(v) for k, v in trainer.callback_metrics.items()
+                        if isinstance(v, (int, float, torch.Tensor))
+                    }
+                    # Add a note that these are from final epoch if best_epoch != final_epoch
+                    if best_epoch != trainer.current_epoch:
+                        mf_logger.warning(
+                            f"Metrics in best_info.json are from final epoch ({trainer.current_epoch}), "
+                            f"not best epoch ({best_epoch}). PyTorch Lightning doesn't store full metrics in checkpoints."
+                        )
+            
+            best_info = {
+                "checkpoint_path": str(best_ckpt),
+                "monitor": ckpt_callback.monitor if ckpt_callback else "val/acc",
+                "best_score": float(ckpt_callback.best_model_score) if ckpt_callback and ckpt_callback.best_model_score is not None else None,
+                "best_epoch": best_epoch,
+                "final_epoch": trainer.current_epoch,
+                "seed": cfg.seed,
+                "metrics": best_epoch_metrics,
+            }
+            best_info_path = ckpt_dir / "best_info.json"
+            with open(best_info_path, "w") as f:
+                json.dump(best_info, f, indent=2)
+            mf_logger.info(f"Best checkpoint info saved to: {best_info_path}")
         else:
             mf_logger.warning(
                 f"Best checkpoint path not set by ModelCheckpoint callback. Available checkpoints in {cfg.runtime.ckpt_dir}: {list(Path(cfg.runtime.ckpt_dir).glob('*.ckpt')) if Path(cfg.runtime.ckpt_dir).exists() else 'N/A'}"
             )
+        
+        # Write last checkpoint info file
+        last_ckpt = ckpt_dir / "last.ckpt"
+        if last_ckpt.exists():
+            import json
+            
+            # Load last checkpoint to get the epoch it was saved at
+            last_ckpt_data = torch.load(last_ckpt, map_location="cpu")
+            last_epoch = last_ckpt_data.get("epoch", trainer.current_epoch)
+            
+            # Get metrics from the last epoch (current trainer metrics should match)
+            last_epoch_metrics = {}
+            if hasattr(trainer, "callback_metrics"):
+                last_epoch_metrics = {
+                    k: float(v) for k, v in trainer.callback_metrics.items()
+                    if isinstance(v, (int, float, torch.Tensor))
+                }
+            
+            last_info = {
+                "checkpoint_path": str(last_ckpt),
+                "epoch": last_epoch,
+                "seed": cfg.seed,
+                "metrics": last_epoch_metrics,
+            }
+            last_info_path = ckpt_dir / "last_info.json"
+            with open(last_info_path, "w") as f:
+                json.dump(last_info, f, indent=2)
+            mf_logger.info(f"Last checkpoint info saved to: {last_info_path}")
 
         # Log final metrics
         if hasattr(trainer, "callback_metrics"):
