@@ -1,0 +1,22 @@
+{
+  "checkpoint_path": "/export/home/4huda/group5/outputs/mlflow_experiments/v1-pcen-neg-contrast-f/checkpoints/best.ckpt",
+  "monitor": "val/fmeasure",
+  "best_score": 47.66999816894531,
+  "best_epoch": 15,
+  "final_epoch": 26,
+  "seed": 1234,
+  "metrics": {
+    "lr-AdamW": 0.00042249998659826815,
+    "lr": 0.0004225063312333077,
+    "lr_step": 0.00042249998659826815,
+    "train/loss": 0.0809103325009346,
+    "train/loss_step": 0.04374537244439125,
+    "val/loss": 2.3711624145507812,
+    "val/loss_epoch": 2.3711624145507812,
+    "val/acc": 0.45270371437072754,
+    "val/fmeasure": 38.310001373291016,
+    "lr_epoch": 0.0004225063312333077,
+    "train/loss_epoch": 0.0809103325009346,
+    "train/acc": 0.9729999899864197
+  }
+}

@@ -15,10 +15,10 @@ defaults:
   - optional local: default.yaml
 
 # General Settings
-print_config: true
+print_config: false
 ignore_warnings: true
 train: true
-test: true
+test: false # By default, we do not test the model on the evaluation dataset
 seed: 1234
 disable_cudnn: false
 name: "mlflow_experiments"
@@ -59,19 +59,14 @@ train_param:
   seg_len: 0.2
   n_shot: 5
   k_way: 10
-  device: cuda
   lr_rate: 0.001
   scheduler_gamma: 0.65
   scheduler_step_size: 10
   num_episodes: 2000
   adaptive_seg_len: true
-  use_validation_first_5: false
+  use_validation_first_5: false  # If true, include first n_shot positives from val as support in training
   negative_train_contrast: true
   load_weight_from: null
-  negative_seg_search: false
-  merging_segment: false
-  remove_long_segment: false
-  padd_tail: false
 
 # Evaluation Parameters
 eval_param:
@@ -80,23 +75,7 @@ eval_param:
   samples_neg: 150
   iterations: 3
   query_batch_size: 8
-  negative_set_batch_size: 16
-  threshold: 0.9
   negative_estimate: freq_mask
-
-# Annotation Settings
-annotations:
-  train_files:
-    - ${path.train_dir}/**/*.csv
-  val_files:
-    - ${path.eval_dir}/**/*.csv
-  test_files:
-    - ${path.test_dir}/**/*.csv
-  positive_label: POS
-  class_name: null
-  min_duration: ${train_param.seg_len}
-  max_frames: 512
-  batch_size: 1
 
 # Runtime Settings
 runtime:
@@ -105,6 +84,11 @@ runtime:
   prefetch_factor: 2
   log_dir: outputs/${name}/${exp_name}
   ckpt_dir: ${runtime.log_dir}/checkpoints
+
+# Checkpoint Settings
+checkpoint:
+  monitor: "val/acc"  # Metric to monitor for best checkpoint (e.g., "val/acc", "val/loss", "val/fmeasure")
+  mode: "max"         # "max" for metrics like accuracy, "min" for metrics like loss
 
 # Execution Flags
 set:

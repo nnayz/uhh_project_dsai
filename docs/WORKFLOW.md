@@ -318,9 +318,13 @@ outputs/evaluation/<pred_name>/
 ```bash
 # 1. Export features once (takes ~10-30 minutes depending on dataset size)
 g5 export-features --split all
+# Or export both logmel and pcen
+g5 export-features --split all --type logmel@pcen
 
 # 2. Verify feature presence
 g5 check-features --split all
+# Or validate specific feature types
+g5 check-features --split all --type logmel@pcen
 
 # 3. Train a V1 model
 g5 train v1 --exp-name my_experiment

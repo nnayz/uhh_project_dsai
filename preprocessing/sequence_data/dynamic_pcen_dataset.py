@@ -1,25 +1,18 @@
-import itertools as it
 import os
 from glob import glob
 from itertools import chain
-import time
-import h5py
-import librosa
 import numpy as np
 import pandas as pd
 from torch.utils.data import Dataset
 
-from preprocessing.sequence_data.Datagenerator import Datagen_test
 from preprocessing.sequence_data.pcen import Feature_Extractor
+from preprocessing.ann_service import parse_positive_events_train
 
 
 class PrototypeDynamicArrayDataSet(Dataset):
     def __init__(self, path: dict = {}, features: dict = {}, train_param: dict = {}):
-        """_summary_
-            Load array from the assigned suffix
-        Args:
-            path (dict, optional): _description_. Defaults to {}.
-            features (dict, optional): _description_. Defaults to {}.
+        """
+        Load array from the assigned suffix
         """
         self.path = path
         self.features = features
@@ -27,7 +20,9 @@ class PrototypeDynamicArrayDataSet(Dataset):
         self.samples_per_cls = train_param.n_shot * 2
         self.seg_len = train_param.seg_len
         self.fe = Feature_Extractor(
-            self.features, audio_path=[path.train_dir, path.eval_dir]
+            self.features,
+            audio_path=[path.train_dir, path.eval_dir],
+            stats_audio_path=[path.train_dir],
         )  # TODO here only training set
 
         print(
@@ -169,15 +164,18 @@ class PrototypeDynamicArrayDataSet(Dataset):
         return x
 
     def build_meta(self):
-        from tqdm import tqdm
+        from rich.progress import track
 
         print("Preparing meta data...")
         # Main function for building up meta data
-        for file in tqdm(self.all_csv_files):
+        for file in track(self.all_csv_files, description="Preparing meta data..."):
             glob_cls_name = self.get_glob_cls_name(file)
-            df_pos = self.get_df_pos(file)
-            start_time, end_time = self.get_time(df_pos)
-            cls_list = self.get_cls_list(df_pos, glob_cls_name, start_time)
+            events = parse_positive_events_train(file, glob_cls_name)
+            if not events:
+                continue
+            start_time = [s for s, _, _ in events]
+            end_time = [e for _, e, _ in events]
+            cls_list = [c for _, _, c in events]
             self.update_meta(start_time, end_time, cls_list, file)
 
     def update_meta(self, start_time, end_time, cls_list, csv_file):
@@ -282,7 +280,7 @@ class PrototypeDynamicArrayDataSet(Dataset):
 def calculate_mean_std():
     import torch
     from omegaconf import OmegaConf
-    from tqdm import tqdm
+    from rich.progress import track
 
     from preprocessing.sequence_data.identity_sampler import IdentityBatchSampler
 
@@ -302,7 +300,7 @@ def calculate_mean_std():
     )
     loader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler, num_workers=0)
     # mean: 1.4421, std: 1.2201
-    for each in tqdm(loader):
+    for each in track(loader, description="Processing..."):
         x, x_neg, y, y_neg, class_name = each
         print("here")
         # import ipdb; ipdb.set_trace()

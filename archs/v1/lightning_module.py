@@ -99,8 +99,9 @@ class ProtoNetLightningModule(L.LightningModule):
         return loss + dist_loss
 
     def validation_step(self, batch, batch_idx: int) -> torch.Tensor:
-        loss, _, dist_loss = self._step(batch)
+        loss, acc, dist_loss = self._step(batch)
         self.log("val/loss", loss, on_step=True, on_epoch=True, prog_bar=True)
+        self.log("val/acc", acc, on_step=False, on_epoch=True, prog_bar=True)
         return loss + dist_loss
 
     def on_validation_epoch_end(self) -> None:
@@ -320,11 +321,14 @@ class ProtoNetLightningModule(L.LightningModule):
                     self.onset_offset[k]["offset_arr"], onset_offset[k][1]
                 )
 
-        out_root = Path("outputs") / "val_eval" / f"epoch_{self.current_epoch:03d}"
+        # Get log_dir from datamodule's config (trainer.log_dir may be None with MLFlowLogger)
+        log_dir = self.trainer.datamodule.cfg.runtime.log_dir
+        out_root = Path(log_dir) / "val_eval" / f"epoch_{self.current_epoch:03d}"
         out_root.mkdir(parents=True, exist_ok=True)
 
         best = None
         best_label = None
+        all_fmeasures = []  # Collect all f-measures for statistics
 
         for k in self.onset_offset.keys():
             df_out = pd.DataFrame(
@@ -348,6 +352,7 @@ class ProtoNetLightningModule(L.LightningModule):
                 "VAL",
                 str(alpha_dir),
             )
+            all_fmeasures.append(raw_scores["fmeasure"])
             if best is None or raw_scores["fmeasure"] > best["fmeasure"]:
                 best = raw_scores
                 best_label = f"raw_{k}"
@@ -369,6 +374,7 @@ class ProtoNetLightningModule(L.LightningModule):
                     "VAL",
                     str(alpha_dir),
                 )
+                all_fmeasures.append(scores["fmeasure"])
                 if scores["fmeasure"] > best["fmeasure"]:
                     best = scores
                     best_label = f"minlen_{k}_{threshold:.1f}"
@@ -391,9 +397,11 @@ class ProtoNetLightningModule(L.LightningModule):
                     "VAL",
                     str(alpha_dir),
                 )
+                all_fmeasures.append(scores["fmeasure"])
                 if scores["fmeasure"] > best["fmeasure"]:
                     best = scores
                     best_label = f"fixed_{k}_{threshold_length:.2f}"
 
         if best is not None:
+            # Log the best f-measure (for checkpointing and early stopping)
             self.log("val/fmeasure", best["fmeasure"], prog_bar=True)
