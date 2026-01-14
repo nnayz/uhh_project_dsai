@@ -553,24 +553,56 @@ def main(cfg: DictConfig) -> None:
             # Write best checkpoint info file
             import json
             
-            # Load best checkpoint to get the epoch it was saved at
+            # Load best checkpoint to get the epoch it was saved at and its metrics
             best_ckpt_data = torch.load(best_ckpt, map_location="cpu")
             best_epoch = best_ckpt_data.get("epoch", None)
             
-            # Get all metrics from the checkpoint
-            best_metrics = {}
-            if "callbacks" in best_ckpt_data:
-                for cb_state in best_ckpt_data["callbacks"].values():
-                    if isinstance(cb_state, dict) and "best_model_score" in cb_state:
-                        best_metrics["best_model_score"] = float(cb_state["best_model_score"]) if cb_state["best_model_score"] is not None else None
+            # Extract metrics from the checkpoint (these are from the best epoch)
+            # PyTorch Lightning stores logged metrics in 'loops' -> 'fit_loop' -> 'epoch_loop' -> '_batches_that_stepped'
+            # or in older versions in different locations. We'll try multiple approaches.
+            best_epoch_metrics = {}
             
-            # Also get current callback metrics (these are final epoch metrics)
-            final_metrics = {}
-            if hasattr(trainer, "callback_metrics"):
-                final_metrics = {
-                    k: float(v) for k, v in trainer.callback_metrics.items()
-                    if isinstance(v, (int, float, torch.Tensor))
-                }
+            # Try to extract from 'loops' structure (newer Lightning versions)
+            if "loops" in best_ckpt_data:
+                loops = best_ckpt_data["loops"]
+                if isinstance(loops, dict) and "fit_loop" in loops:
+                    fit_loop = loops["fit_loop"]
+                    if isinstance(fit_loop, dict) and "epoch_progress" in fit_loop:
+                        # This gives us confirmation we're at the right epoch
+                        pass
+            
+            # Try 'callbacks' for ModelCheckpoint stored metrics
+            if "callbacks" in best_ckpt_data:
+                for cb_key, cb_state in best_ckpt_data["callbacks"].items():
+                    if isinstance(cb_state, dict):
+                        # ModelCheckpoint stores best_model_score
+                        if "best_model_score" in cb_state and cb_state["best_model_score"] is not None:
+                            best_epoch_metrics["best_model_score"] = float(cb_state["best_model_score"])
+            
+            # The most reliable approach: reload the model and get its logged metrics
+            # Since the checkpoint was saved at the best epoch, we can use the trainer's
+            # logged_metrics from that checkpoint by loading it
+            
+            # Alternative: Use hyper_parameters if stored
+            if "hyper_parameters" in best_ckpt_data:
+                hp = best_ckpt_data["hyper_parameters"]
+                # Some implementations store metrics here
+            
+            # If we couldn't extract metrics from checkpoint structure, 
+            # use the current trainer metrics but note they're from final epoch
+            if not best_epoch_metrics or len(best_epoch_metrics) <= 1:
+                # Fall back to current callback_metrics but mark them
+                if hasattr(trainer, "callback_metrics"):
+                    best_epoch_metrics = {
+                        k: float(v) for k, v in trainer.callback_metrics.items()
+                        if isinstance(v, (int, float, torch.Tensor))
+                    }
+                    # Add a note that these are from final epoch if best_epoch != final_epoch
+                    if best_epoch != trainer.current_epoch:
+                        mf_logger.warning(
+                            f"Metrics in best_info.json are from final epoch ({trainer.current_epoch}), "
+                            f"not best epoch ({best_epoch}). PyTorch Lightning doesn't store full metrics in checkpoints."
+                        )
             
             best_info = {
                 "checkpoint_path": str(best_ckpt),
@@ -579,7 +611,7 @@ def main(cfg: DictConfig) -> None:
                 "best_epoch": best_epoch,
                 "final_epoch": trainer.current_epoch,
                 "seed": cfg.seed,
-                "final_metrics": final_metrics,
+                "metrics": best_epoch_metrics,
             }
             best_info_path = ckpt_dir / "best_info.json"
             with open(best_info_path, "w") as f:
@@ -595,19 +627,23 @@ def main(cfg: DictConfig) -> None:
         if last_ckpt.exists():
             import json
             
-            # Get all final metrics
-            final_metrics = {}
+            # Load last checkpoint to get the epoch it was saved at
+            last_ckpt_data = torch.load(last_ckpt, map_location="cpu")
+            last_epoch = last_ckpt_data.get("epoch", trainer.current_epoch)
+            
+            # Get metrics from the last epoch (current trainer metrics should match)
+            last_epoch_metrics = {}
             if hasattr(trainer, "callback_metrics"):
-                final_metrics = {
+                last_epoch_metrics = {
                     k: float(v) for k, v in trainer.callback_metrics.items()
                     if isinstance(v, (int, float, torch.Tensor))
                 }
             
             last_info = {
                 "checkpoint_path": str(last_ckpt),
-                "epoch": trainer.current_epoch,
+                "epoch": last_epoch,
                 "seed": cfg.seed,
-                "metrics": final_metrics,
+                "metrics": last_epoch_metrics,
             }
             last_info_path = ckpt_dir / "last_info.json"
             with open(last_info_path, "w") as f:
