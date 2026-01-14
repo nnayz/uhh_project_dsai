@@ -30,3 +30,7 @@ outputs/**
 !outputs/mlflow_experiments/**/checkpoints/
 !outputs/mlflow_experiments/**/checkpoints/**
 mlruns/
+
+
+# legacy baseline implementation
+archs/baseline
