@@ -1,0 +1,19 @@
+{
+  "checkpoint_path": "outputs/mlflow_experiments/v1-logmel-neg-contrast-f/checkpoints/last.ckpt",
+  "epoch": 18,
+  "seed": 1234,
+  "metrics": {
+    "lr-AdamW": 0.0006500000017695129,
+    "lr": 0.0006500036688521504,
+    "lr_step": 0.0006500000017695129,
+    "train/loss": 0.08415929973125458,
+    "train/loss_step": 0.05068906769156456,
+    "val/loss": 1.0092952251434326,
+    "val/loss_epoch": 1.0092952251434326,
+    "val/acc": 0.7111111283302307,
+    "val/fmeasure": 36.316001892089844,
+    "lr_epoch": 0.0006500036688521504,
+    "train/loss_epoch": 0.08415929973125458,
+    "train/acc": 0.9722916483879089
+  }
+}
