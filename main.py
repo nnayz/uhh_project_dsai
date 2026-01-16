@@ -326,6 +326,95 @@ def list_all_audio_files():
     list_data.list_all_audio_files()
 
 
+# Visualization Commands
+
+
+@cli.command("viz-segments", help="Visualize segments for a specific class")
+@click.argument("class-name", type=str)
+@click.option(
+    "--split",
+    "-s",
+    type=click.Choice(["train", "val", "test"]),
+    default="train",
+    help="Data split to visualize",
+)
+@click.option(
+    "--max-segments",
+    "-n",
+    type=int,
+    default=5,
+    help="Maximum number of segments to visualize",
+)
+@click.option(
+    "--output-dir",
+    "-o",
+    type=click.Path(file_okay=False, path_type=Path),
+    required=False,
+    help="Directory to save visualizations (optional)",
+)
+@click.option(
+    "--no-precomputed",
+    is_flag=True,
+    default=False,
+    help="Don't use pre-computed feature arrays, compute on-the-fly",
+)
+@click.option(
+    "--show",
+    is_flag=True,
+    default=False,
+    help="Display plots interactively",
+)
+@click.option(
+    "--exp-name",
+    "-e",
+    type=str,
+    required=False,
+    help="Experiment name override (optional)",
+)
+def viz_segments(class_name, split, max_segments, output_dir, no_precomputed, show, exp_name):
+    """
+    Visualize audio segments for a specific class.
+
+    This command visualizes segments including:
+    - Audio signals in time domain
+    - Log mel spectrograms
+    - PCEN spectrograms
+    - Comparison between logmel and PCEN
+
+    CLASS_NAME: Name or ID of the class to visualize
+
+    Examples:
+
+        g5 viz-segments "BirdSpecies_A"
+
+        g5 viz-segments "CLASS_1" --split val --max-segments 10
+
+        g5 viz-segments "BirdSpecies_A" --output-dir outputs/visualizations
+    """
+    overrides = [f"+exp_name={exp_name}"] if exp_name else []
+    cfg = load_config(overrides)
+
+    from viz.segment_visualizer import visualize_segments_for_class
+
+    logger.info(f"Visualizing segments for class: {class_name}")
+    logger.info(f"Split: {split}, Max segments: {max_segments}")
+
+    try:
+        segments = visualize_segments_for_class(
+            class_name=class_name,
+            cfg=cfg,
+            split=split,
+            max_segments=max_segments,
+            output_dir=output_dir,
+            use_precomputed=not no_precomputed,
+            show_plots=show,
+        )
+        logger.info(f"Successfully visualized {len(segments)} segments")
+    except Exception as e:
+        logger.error(f"Error during visualization: {e}")
+        raise click.ClickException(str(e))
+
+
 # Training Command (Phase 2) - Lightning only
 
 
