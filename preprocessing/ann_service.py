@@ -33,6 +33,33 @@ def parse_positive_events_train(
 
     return list(zip(start_time, end_time, cls_list))
 
+def parse_negative_events_train(
+    csv_path: Union[str, Path],
+    glob_cls_name: str,
+    padding: float = 0.025,
+) -> List[Tuple[float, float, str]]:
+    """
+    Parse NEG events for the training set with legacy logic preserved.
+    """
+    df = pd.read_csv(csv_path, header=0, index_col=False)
+    df_neg = df[(df == "NEG").any(axis=1)].copy()
+    df_neg.loc[:, "Starttime"] = df_neg["Starttime"] - padding
+    df_neg.loc[:, "Endtime"] = df_neg["Endtime"] + padding
+
+    start_time = [start for start in df_neg["Starttime"]]
+    end_time = [end for end in df_neg["Endtime"]]
+
+    if "CALL" in df_neg.columns:
+        cls_list = [glob_cls_name] * len(start_time)
+    else:
+        cls_list = [
+            df_neg.columns[(df_neg == "NEG").loc[index]].values
+            for index, _ in df_neg.iterrows()
+        ]
+        cls_list = list(chain.from_iterable(cls_list))
+
+    return list(zip(start_time, end_time, cls_list))
+
 
 def parse_positive_events_val(
     csv_path: Union[str, Path],
@@ -53,6 +80,32 @@ def parse_positive_events_val(
     end_time = [end for end in df_pos["Endtime"]]
 
     if "Q" == df_pos.columns[3]:
+        cls_list = [glob_cls_name] * len(start_time)
+    else:
+        raise ValueError(
+            "Unsupported validation CSV format: expected Q column at index 3."
+        )
+
+    return list(zip(start_time, end_time, cls_list))
+
+
+def parse_negative_events_val(
+    csv_path: Union[str, Path],
+    glob_cls_name: str,
+    padding: float = 0.025,
+) -> List[Tuple[float, float, str]]:
+    """
+    Parse NEG events for the validation set with legacy logic preserved.
+    """
+    df = pd.read_csv(csv_path, header=0, index_col=False)
+    df_neg = df[(df == "NEG").any(axis=1)].copy()
+    df_neg.loc[:, "Starttime"] = df_neg["Starttime"] - padding
+    df_neg.loc[:, "Endtime"] = df_neg["Endtime"] + padding
+
+    start_time = [start for start in df_neg["Starttime"]]
+    end_time = [end for end in df_neg["Endtime"]]
+
+    if "Q" == df_neg.columns[3]:
         cls_list = [glob_cls_name] * len(start_time)
     else:
         raise ValueError(
