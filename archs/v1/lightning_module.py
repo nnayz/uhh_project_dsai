@@ -327,8 +327,7 @@ class ProtoNetLightningModule(L.LightningModule):
         out_root.mkdir(parents=True, exist_ok=True)
 
         best = None
-        best_label = None
-        all_fmeasures = []  # Collect all f-measures for statistics
+        # best_label = None
 
         for k in self.onset_offset.keys():
             df_out = pd.DataFrame(
@@ -352,7 +351,6 @@ class ProtoNetLightningModule(L.LightningModule):
                 "VAL",
                 str(alpha_dir),
             )
-            all_fmeasures.append(raw_scores["fmeasure"])
             if best is None or raw_scores["fmeasure"] > best["fmeasure"]:
                 best = raw_scores
                 best_label = f"raw_{k}"
@@ -374,7 +372,6 @@ class ProtoNetLightningModule(L.LightningModule):
                     "VAL",
                     str(alpha_dir),
                 )
-                all_fmeasures.append(scores["fmeasure"])
                 if scores["fmeasure"] > best["fmeasure"]:
                     best = scores
                     best_label = f"minlen_{k}_{threshold:.1f}"
@@ -397,10 +394,9 @@ class ProtoNetLightningModule(L.LightningModule):
                     "VAL",
                     str(alpha_dir),
                 )
-                all_fmeasures.append(scores["fmeasure"])
                 if scores["fmeasure"] > best["fmeasure"]:
                     best = scores
-                    best_label = f"fixed_{k}_{threshold_length:.2f}"
+                    # best_label = f"fixed_{k}_{threshold_length:.2f}"
 
         if best is not None:
             # Log the best f-measure (for checkpointing and early stopping)
