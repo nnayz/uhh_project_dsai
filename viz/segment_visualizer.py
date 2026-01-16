@@ -8,6 +8,7 @@ This module provides functions to visualize:
 - Comparison between different feature types
 """
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Union
 import numpy as np
@@ -21,7 +22,16 @@ from preprocessing.preprocess import (
     waveform_to_logmel,
     waveform_to_pcen,
 )
-from schemas import SegmentExample
+
+
+@dataclass
+class SegmentExample:
+    """Lightweight container for a labeled audio segment."""
+
+    wav_path: Path
+    start_time: float
+    end_time: float
+    class_id: int
 
 
 def load_feature_array(
