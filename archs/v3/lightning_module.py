@@ -71,6 +71,7 @@ class ProtoNetV3LightningModule(L.LightningModule):
         self.negative_train_contrast = negative_train_contrast
         self.n_mels = n_mels
         self.onset_offset = {}
+        self.last_dcase_metrics = None  # Stores DCASE metrics from last evaluation
 
     def _forward_embed(self, x: torch.Tensor) -> torch.Tensor:
         if x.dim() == 3:
@@ -445,3 +446,9 @@ class ProtoNetV3LightningModule(L.LightningModule):
         if best is not None:
             # Log the best f-measure (for checkpointing and early stopping)
             self.log("val/fmeasure", best["fmeasure"], prog_bar=True)
+            # Store full DCASE metrics for checkpoint info
+            self.last_dcase_metrics = {
+                "precision": float(best["precision"]),
+                "recall": float(best["recall"]),
+                "fmeasure": float(best["fmeasure"]),
+            }
