@@ -1,22 +1,12 @@
 {
   "checkpoint_path": "/export/home/4huda/group5/outputs/mlflow_experiments/v1-logmel-neg-contrast/checkpoints/best.ckpt",
   "monitor": "val/acc",
-  "best_score": 0.7490000128746033,
   "best_epoch": 11,
   "final_epoch": 22,
   "seed": 1234,
-  "final_metrics": {
-    "lr-AdamW": 0.00042249998659826815,
-    "lr": 0.0004225063312333077,
-    "lr_step": 0.00042249998659826815,
-    "train/loss": 0.059600457549095154,
-    "train/loss_step": 0.25010257959365845,
-    "val/loss": 0.9724865555763245,
-    "val/loss_epoch": 0.9724865555763245,
-    "val/acc": 0.7287777662277222,
-    "val/fmeasure": 39.74599838256836,
-    "lr_epoch": 0.0004225063312333077,
-    "train/loss_epoch": 0.059600457549095154,
-    "train/acc": 0.9803749918937683
+  "dcase_metrics": {
+    "precision": 31.19,
+    "recall": 38.68,
+    "fmeasure": 34.53
   }
 }

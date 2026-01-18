@@ -524,6 +524,10 @@ def main(cfg: DictConfig) -> None:
         else:
             mf_logger.info("Skipping training (test-only mode)")
 
+        # Variables to store DCASE metrics for checkpoints
+        best_dcase_metrics = None
+        last_dcase_metrics = None
+
         # Find and log best checkpoint
         best_ckpt = None
         ckpt_callback = None
@@ -552,66 +556,28 @@ def main(cfg: DictConfig) -> None:
             
             # Write best checkpoint info file
             import json
-            
-            # Load best checkpoint to get the epoch it was saved at and its metrics
+
+            # Load best checkpoint to get the epoch it was saved at
             best_ckpt_data = torch.load(best_ckpt, map_location="cpu")
             best_epoch = best_ckpt_data.get("epoch", None)
-            
-            # Extract metrics from the checkpoint (these are from the best epoch)
-            # PyTorch Lightning stores logged metrics in 'loops' -> 'fit_loop' -> 'epoch_loop' -> '_batches_that_stepped'
-            # or in older versions in different locations. We'll try multiple approaches.
-            best_epoch_metrics = {}
-            
-            # Try to extract from 'loops' structure (newer Lightning versions)
-            if "loops" in best_ckpt_data:
-                loops = best_ckpt_data["loops"]
-                if isinstance(loops, dict) and "fit_loop" in loops:
-                    fit_loop = loops["fit_loop"]
-                    if isinstance(fit_loop, dict) and "epoch_progress" in fit_loop:
-                        # This gives us confirmation we're at the right epoch
-                        pass
-            
-            # Try 'callbacks' for ModelCheckpoint stored metrics
-            if "callbacks" in best_ckpt_data:
-                for cb_key, cb_state in best_ckpt_data["callbacks"].items():
-                    if isinstance(cb_state, dict):
-                        # ModelCheckpoint stores best_model_score
-                        if "best_model_score" in cb_state and cb_state["best_model_score"] is not None:
-                            best_epoch_metrics["best_model_score"] = float(cb_state["best_model_score"])
-            
-            # The most reliable approach: reload the model and get its logged metrics
-            # Since the checkpoint was saved at the best epoch, we can use the trainer's
-            # logged_metrics from that checkpoint by loading it
-            
-            # Alternative: Use hyper_parameters if stored
-            if "hyper_parameters" in best_ckpt_data:
-                hp = best_ckpt_data["hyper_parameters"]
-                # Some implementations store metrics here
-            
-            # If we couldn't extract metrics from checkpoint structure, 
-            # use the current trainer metrics but note they're from final epoch
-            if not best_epoch_metrics or len(best_epoch_metrics) <= 1:
-                # Fall back to current callback_metrics but mark them
-                if hasattr(trainer, "callback_metrics"):
-                    best_epoch_metrics = {
-                        k: float(v) for k, v in trainer.callback_metrics.items()
-                        if isinstance(v, (int, float, torch.Tensor))
-                    }
-                    # Add a note that these are from final epoch if best_epoch != final_epoch
-                    if best_epoch != trainer.current_epoch:
-                        mf_logger.warning(
-                            f"Metrics in best_info.json are from final epoch ({trainer.current_epoch}), "
-                            f"not best epoch ({best_epoch}). PyTorch Lightning doesn't store full metrics in checkpoints."
-                        )
-            
+
+            # Run DCASE evaluation on the best checkpoint to get segment-based metrics
+            mf_logger.info("Running DCASE evaluation on best checkpoint...")
+            trainer.validate(model, datamodule=datamodule, ckpt_path=str(best_ckpt))
+            best_dcase_metrics = getattr(model, 'last_dcase_metrics', None)
+
+            if best_dcase_metrics:
+                mf_logger.info(f"Best checkpoint DCASE metrics: {best_dcase_metrics}")
+            else:
+                mf_logger.warning("Could not retrieve DCASE metrics for best checkpoint")
+
             best_info = {
                 "checkpoint_path": str(best_ckpt),
-                "monitor": ckpt_callback.monitor if ckpt_callback else "val/acc",
-                "best_score": float(ckpt_callback.best_model_score) if ckpt_callback and ckpt_callback.best_model_score is not None else None,
+                "monitor": ckpt_callback.monitor if ckpt_callback else "val/fmeasure",
                 "best_epoch": best_epoch,
                 "final_epoch": trainer.current_epoch,
                 "seed": cfg.seed,
-                "metrics": best_epoch_metrics,
+                "dcase_metrics": best_dcase_metrics,
             }
             best_info_path = ckpt_dir / "best_info.json"
             with open(best_info_path, "w") as f:
@@ -626,39 +592,45 @@ def main(cfg: DictConfig) -> None:
         last_ckpt = ckpt_dir / "last.ckpt"
         if last_ckpt.exists():
             import json
-            
+
             # Load last checkpoint to get the epoch it was saved at
             last_ckpt_data = torch.load(last_ckpt, map_location="cpu")
             last_epoch = last_ckpt_data.get("epoch", trainer.current_epoch)
-            
-            # Get metrics from the last epoch (current trainer metrics should match)
-            last_epoch_metrics = {}
-            if hasattr(trainer, "callback_metrics"):
-                last_epoch_metrics = {
-                    k: float(v) for k, v in trainer.callback_metrics.items()
-                    if isinstance(v, (int, float, torch.Tensor))
-                }
-            
+
+            # Run DCASE evaluation on the last checkpoint to get segment-based metrics
+            mf_logger.info("Running DCASE evaluation on last checkpoint...")
+            trainer.validate(model, datamodule=datamodule, ckpt_path=str(last_ckpt))
+            last_dcase_metrics = getattr(model, 'last_dcase_metrics', None)
+
+            if last_dcase_metrics:
+                mf_logger.info(f"Last checkpoint DCASE metrics: {last_dcase_metrics}")
+            else:
+                mf_logger.warning("Could not retrieve DCASE metrics for last checkpoint")
+
             last_info = {
                 "checkpoint_path": str(last_ckpt),
                 "epoch": last_epoch,
                 "seed": cfg.seed,
-                "metrics": last_epoch_metrics,
+                "dcase_metrics": last_dcase_metrics,
             }
             last_info_path = ckpt_dir / "last_info.json"
             with open(last_info_path, "w") as f:
                 json.dump(last_info, f, indent=2)
             mf_logger.info(f"Last checkpoint info saved to: {last_info_path}")
 
-        # Log final metrics
-        if hasattr(trainer, "callback_metrics"):
-            final_metrics = {
-                k: float(v)
-                for k, v in trainer.callback_metrics.items()
-                if isinstance(v, (int, float, torch.Tensor))
-            }
-            if final_metrics:
-                mf_logger.log_metrics(final_metrics)
+        # Log DCASE metrics to MLflow
+        if best_dcase_metrics:
+            mf_logger.log_metrics({
+                "best/dcase_precision": best_dcase_metrics["precision"],
+                "best/dcase_recall": best_dcase_metrics["recall"],
+                "best/dcase_fmeasure": best_dcase_metrics["fmeasure"],
+            })
+        if last_dcase_metrics:
+            mf_logger.log_metrics({
+                "last/dcase_precision": last_dcase_metrics["precision"],
+                "last/dcase_recall": last_dcase_metrics["recall"],
+                "last/dcase_fmeasure": last_dcase_metrics["fmeasure"],
+            })
 
         # Run test if enabled
         if cfg.test and cfg.annotations.test_files:
