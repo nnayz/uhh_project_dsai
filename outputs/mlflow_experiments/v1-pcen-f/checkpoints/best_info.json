@@ -1,22 +1,12 @@
 {
   "checkpoint_path": "/export/home/4huda/group5/outputs/mlflow_experiments/v1-pcen-f/checkpoints/best-v1.ckpt",
   "monitor": "val/fmeasure",
-  "best_score": 52.28200149536133,
   "best_epoch": 20,
   "final_epoch": 31,
   "seed": 1234,
-  "metrics": {
-    "lr-AdamW": 0.00027462499565444887,
-    "lr": 0.0002746229583863169,
-    "lr_step": 0.00027462499565444887,
-    "train/loss": 0.02820073813199997,
-    "train/loss_step": 0.006914468482136726,
-    "val/loss": 1.3721567392349243,
-    "val/loss_epoch": 1.3721567392349243,
-    "val/acc": 0.4923703670501709,
-    "val/fmeasure": 45.31800079345703,
-    "lr_epoch": 0.0002746229583863169,
-    "train/loss_epoch": 0.02820073813199997,
-    "train/acc": 0.9904166460037231
+  "dcase_metrics": {
+    "precision": 36.69,
+    "recall": 44.49,
+    "fmeasure": 40.22
   }
 }

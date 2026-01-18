@@ -110,30 +110,22 @@ The core algorithm learns an embedding space where classification is done by com
 │   ├── evaluation.py             # Baseline evaluation
 │   ├── loss.py                   # Prototypical loss functions
 │   └── distance.py               # Distance metrics
-└── docs/                         # Documentation
-    ├── DOCUMENTATION_INDEX.md    # Documentation overview
-    ├── WORKFLOW.md               # End-to-end workflow guide
-    ├── CLI_USAGE.md              # CLI reference
-    ├── CONFIG_REFERENCE.md       # Configuration parameters
-    ├── AUDIO_SIGNAL_PROCESSING.md # Signal processing details
-    ├── FEATURES_AND_DATAFLOW.md  # Data loading pipeline
-    ├── PREPROCESSING.md          # CSV parsing and segmentation
-    ├── PROTOTYPICAL_NETWORK.md   # Algorithm explanation
-    └── V2_IMPLEMENTATION_SUMMARY.md # V2 architecture details
 ```
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [DOCUMENTATION_INDEX.md](docs/DOCUMENTATION_INDEX.md) | Start here - overview of all docs |
-| [WORKFLOW.md](docs/WORKFLOW.md) | End-to-end training workflow |
-| [CLI_USAGE.md](docs/CLI_USAGE.md) | Command-line interface reference |
-| [CONFIG_REFERENCE.md](docs/CONFIG_REFERENCE.md) | All configuration parameters explained |
-| [AUDIO_SIGNAL_PROCESSING.md](docs/AUDIO_SIGNAL_PROCESSING.md) | How audio becomes features (with diagrams) |
-| [FEATURES_AND_DATAFLOW.md](docs/FEATURES_AND_DATAFLOW.md) | DataModule and data loading pipeline |
-| [PROTOTYPICAL_NETWORK.md](docs/PROTOTYPICAL_NETWORK.md) | Algorithm and math explanation |
-| [V2_IMPLEMENTATION_SUMMARY.md](docs/V2_IMPLEMENTATION_SUMMARY.md) | V2 architecture (ResNet + Attention) |
+📚 **[Full Documentation on Wiki](https://github.com/nnayz/uhh_project_dsai/wiki)**
+
+The complete documentation is available on the project wiki, including:
+
+- **[Installation Guide](https://github.com/nnayz/uhh_project_dsai/wiki/Installation)** - Setup and dependencies
+- **[CLI Reference](https://github.com/nnayz/uhh_project_dsai/wiki/CLI-Reference)** - All `g5` commands
+- **[Prototypical Networks](https://github.com/nnayz/uhh_project_dsai/wiki/Prototypical-Networks)** - Algorithm explanation
+- **[Training Guide](https://github.com/nnayz/uhh_project_dsai/wiki/Training-Guide)** - How to train models
+- **[Architecture Overview](https://github.com/nnayz/uhh_project_dsai/wiki/Architecture-Overview)** - V1, V2, V3 comparison
+- **[Configuration](https://github.com/nnayz/uhh_project_dsai/wiki/Configuration)** - All configuration parameters
+- **[Dataset Info](https://github.com/nnayz/uhh_project_dsai/wiki/Dataset-Info)** - Dataset structure and statistics
+- **[Workflow](https://github.com/nnayz/uhh_project_dsai/wiki/Workflow)** - End-to-end pipeline guide
 
 ## Configuration
 
@@ -156,7 +148,7 @@ Override via CLI:
 g5 train v1 --exp-name my_experiment arch.training.learning_rate=0.0005
 ```
 
-> 📖 See [`docs/CONFIG_REFERENCE.md`](docs/CONFIG_REFERENCE.md) for complete parameter documentation.
+> 📖 See the [Configuration Wiki Page](https://github.com/nnayz/uhh_project_dsai/wiki/Configuration) for complete parameter documentation.
 
 ## Data Format
 

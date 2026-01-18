@@ -1,3 +1,3 @@
-from .segment_example import SegmentExample
+"""Schemas package."""
 
-__all__ = ["SegmentExample"]
+__all__: list[str] = []

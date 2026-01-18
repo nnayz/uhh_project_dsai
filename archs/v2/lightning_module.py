@@ -72,6 +72,7 @@ class ProtoNetV2LightningModule(L.LightningModule):
         self.n_shot = n_shot
         self.negative_train_contrast = negative_train_contrast
         self.onset_offset = {}
+        self.last_dcase_metrics = None  # Stores DCASE metrics from last evaluation
 
         self.use_augmentation = use_augmentation
         self.augmentation = AudioAugmentation(
@@ -418,3 +419,9 @@ class ProtoNetV2LightningModule(L.LightningModule):
         if best is not None:
             # Log the best f-measure (for checkpointing and early stopping)
             self.log("val/fmeasure", best["fmeasure"], prog_bar=True)
+            # Store full DCASE metrics for checkpoint info
+            self.last_dcase_metrics = {
+                "precision": float(best["precision"]),
+                "recall": float(best["recall"]),
+                "fmeasure": float(best["fmeasure"]),
+            }
