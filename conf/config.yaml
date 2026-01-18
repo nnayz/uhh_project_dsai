@@ -88,7 +88,7 @@ runtime:
 
 # Checkpoint Settings
 checkpoint:
-  monitor: "val/acc"  # Metric to monitor for best checkpoint (e.g., "val/acc", "val/loss", "val/fmeasure")
+  monitor: "val/fmeasure"  # Metric to monitor for best checkpoint (e.g., "val/acc", "val/loss", "val/fmeasure")
   mode: "max"         # "max" for metrics like accuracy, "min" for metrics like loss
 
 # Execution Flags
