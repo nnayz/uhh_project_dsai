@@ -6,7 +6,7 @@ import pandas as pd
 from torch.utils.data import Dataset
 
 from preprocessing.sequence_data.pcen import Feature_Extractor
-from preprocessing.ann_service import parse_positive_events_train
+from preprocessing.ann_service import parse_positive_events_train, parse_negative_events_train
 
 
 class PrototypeDynamicArrayDataSet(Dataset):
@@ -39,16 +39,22 @@ class PrototypeDynamicArrayDataSet(Dataset):
         self.pcen = {}
         self.cnt = 0
         self.batchsize = self.train_param.k_way * self.train_param.n_shot * 2
+        self.use_csv_neg = getattr(train_param, 'use_csv_neg_annotations', False)
 
         """meta dic structure
         {
             <class-name>: {
                 "info":[(<start-time>, <end-time>), ...],
-                "duration": [duration1, duration2, ...]
+                "duration": [duration1, duration2, ...],
+                "neg_info": [(<start-time>, <end-time>), ...],
+                "neg_file": [audio_path, ...] (only when use_csv_neg_annotations=True)
             }
         }
         """
-        self.build_meta()
+        if self.use_csv_neg:
+            self.build_meta_with_csv_neg()
+        else:
+            self.build_meta()
         # self.remove_short_negative_duration()
 
         self.classes = list(self.meta.keys())
@@ -103,10 +109,17 @@ class PrototypeDynamicArrayDataSet(Dataset):
         while end - start < 0.2:  # TODO the value here
             segment_idx = np.random.randint(len(self.meta[class_name]["neg_info"]))
             start, end = self.meta[class_name]["neg_info"][segment_idx]
+
+        # Use neg_file if available (CSV NEG mode), otherwise use file (gap-based)
+        if "neg_file" in self.meta[class_name] and self.meta[class_name]["neg_file"]:
+            audio_file = self.meta[class_name]["neg_file"][segment_idx]
+        else:
+            audio_file = self.meta[class_name]["file"][segment_idx]
+
         segment = self.select_segment(
             start,
             end,
-            self.pcen[self.meta[class_name]["file"][segment_idx]],
+            self.pcen[audio_file],
             seg_len=int(self.seg_len * self.fps),
         )
         return segment
@@ -196,6 +209,55 @@ class PrototypeDynamicArrayDataSet(Dataset):
 
             if audio_path not in self.pcen.keys():
                 self.pcen[audio_path] = self.fe.extract_feature(audio_path)
+
+    def build_meta_with_csv_neg(self):
+        """Build meta using explicit NEG annotations from CSV files."""
+        from rich.progress import track
+
+        print("Preparing meta data with CSV NEG annotations...")
+        for file in track(self.all_csv_files, description="Preparing meta data (CSV NEG)..."):
+            glob_cls_name = self.get_glob_cls_name(file)
+
+            # Parse positive events
+            pos_events = parse_positive_events_train(file, glob_cls_name)
+            if not pos_events:
+                continue
+
+            # Parse NEG events from CSV
+            neg_events = parse_negative_events_train(file, glob_cls_name)
+
+            # Update meta with positives and explicit negatives
+            self.update_meta_with_csv_neg(pos_events, neg_events, file)
+
+    def update_meta_with_csv_neg(self, pos_events, neg_events, csv_file):
+        """Update meta with explicit NEG annotations from CSV files."""
+        audio_path = csv_file.replace("csv", "wav")
+
+        # Process positive events
+        for start, end, cls in pos_events:
+            if cls not in self.meta.keys():
+                self.meta[cls] = {}
+                self.meta[cls]["info"] = []  # positive segment onset and offset
+                self.meta[cls]["duration"] = []  # duration of positive segments
+                self.meta[cls]["file"] = []  # filename for positives
+                self.meta[cls]["neg_info"] = []  # negative segment onset and offset
+                self.meta[cls]["neg_file"] = []  # filename for negatives
+
+            self.meta[cls]["info"].append((start, end))
+            self.meta[cls]["duration"].append(end - start)
+            self.meta[cls]["file"].append(audio_path)
+
+        # Process NEG events
+        if neg_events:
+            for neg_start, neg_end, neg_cls in neg_events:
+                # Only add negatives for classes that have positives
+                if neg_cls in self.meta.keys():
+                    self.meta[neg_cls]["neg_info"].append((neg_start, neg_end))
+                    self.meta[neg_cls]["neg_file"].append(audio_path)
+
+        # Load audio features
+        if audio_path not in self.pcen.keys():
+            self.pcen[audio_path] = self.fe.extract_feature(audio_path)
 
     def remove_short_negative_duration(self):
         delete_keys = []

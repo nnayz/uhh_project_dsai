@@ -29,6 +29,7 @@ outputs/**
 !outputs/mlflow_experiments/**/
 !outputs/mlflow_experiments/**/checkpoints/
 !outputs/mlflow_experiments/**/checkpoints/**
+!outputs/mlflow_experiments/**/val_eval/**
 mlruns/
 
 

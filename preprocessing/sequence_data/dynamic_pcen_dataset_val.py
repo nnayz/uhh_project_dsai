@@ -16,7 +16,7 @@ import wave
 
 from preprocessing.sequence_data.Datagenerator import Datagen_test
 from preprocessing.sequence_data.pcen import Feature_Extractor
-from preprocessing.ann_service import parse_positive_events_val
+from preprocessing.ann_service import parse_positive_events_val, parse_negative_events_val
 
 # logmel.npy: log mel spectrogram
 # .npy: PCEN spectrogram
@@ -60,17 +60,23 @@ class PrototypeDynamicArrayDataSetVal(Dataset):
         self.mel = {}
         self.mask = {}
         self.eval_classes = []
+        self.use_csv_neg = getattr(train_param, 'use_csv_neg_annotations', False)
 
         # Store the un_normalized mel spectrograms
         """meta dic structure
         {
             <class-name>: {
                 "info":[(<start-time>, <end-time>), ...],
-                "duration": [duration1, duration2, ...]
+                "duration": [duration1, duration2, ...],
+                "neg_info": [(<start-time>, <end-time>), ...],
+                "neg_file": [audio_path, ...]
             }
         }
         """
-        self.build_meta()
+        if self.use_csv_neg:
+            self.build_meta_with_csv_neg()
+        else:
+            self.build_meta()
         # self.build_mask()
         # self.load_mask()
         self.build_buffer()
@@ -298,6 +304,58 @@ class PrototypeDynamicArrayDataSetVal(Dataset):
     #     import ipdb; ipdb.set_trace()
     #     self.meta[clss]["total_audio_duration"].append(librosa.get_duration(filename=audio_path,sr=None))
     #     self.meta[clss]["file"].append(audio_path)
+
+    def build_meta_with_csv_neg(self):
+        """Build meta using explicit NEG annotations from CSV files."""
+        print("Preparing meta data with CSV NEG annotations...")
+        for file in track(self.all_csv_files, description="Preparing meta data (CSV NEG)..."):
+            glob_cls_name = self.get_glob_cls_name(file)
+
+            # Parse positive events
+            pos_events = parse_positive_events_val(file, glob_cls_name)
+            if not pos_events:
+                continue
+
+            # Parse NEG events from CSV
+            neg_events = parse_negative_events_val(file, glob_cls_name)
+
+            # Update meta with positives and explicit negatives
+            self.update_meta_with_csv_neg(pos_events, neg_events, file)
+
+    def update_meta_with_csv_neg(self, pos_events, neg_events, csv_file):
+        """Update meta with explicit NEG annotations from CSV files."""
+        audio_path = csv_file.replace("csv", "wav")
+
+        # Process positive events
+        for start, end, clss in pos_events:
+            if csv_file in self.all_csv_files and clss not in self.eval_classes:
+                self.eval_classes.append(clss)
+
+            if clss not in self.meta.keys():
+                self.meta[clss] = {}
+                self.meta[clss]["info"] = []  # positive segment onset and offset
+                self.meta[clss]["neg_info"] = []  # negative segment onset and offset
+                self.meta[clss]["duration"] = []  # duration of positive segments
+                self.meta[clss]["neg_duration"] = []  # duration of negative segments
+                self.meta[clss]["total_audio_duration"] = []  # duration
+                self.meta[clss]["file"] = []  # filename for positives
+                self.meta[clss]["neg_file"] = []  # filename for negatives
+
+            self.meta[clss]["total_audio_duration"].append(
+                self._get_audio_duration(audio_path)
+            )
+            self.meta[clss]["info"].append((start, end))
+            self.meta[clss]["duration"].append(end - start)
+            self.meta[clss]["file"].append(audio_path)
+
+        # Process NEG events from CSV
+        if neg_events:
+            for neg_start, neg_end, neg_cls in neg_events:
+                # Only add negatives for classes that have positives
+                if neg_cls in self.meta.keys():
+                    self.meta[neg_cls]["neg_info"].append((neg_start, neg_end))
+                    self.meta[neg_cls]["neg_duration"].append(neg_end - neg_start)
+                    self.meta[neg_cls]["neg_file"].append(audio_path)
 
     def get_class_durations(self):
         durations = []
