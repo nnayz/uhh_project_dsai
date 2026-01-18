@@ -23,6 +23,10 @@ UNK_VALUE = "UNK"
 def remove_shots_from_ref(ref_df, number_shots=5):
 
     ref_pos_indexes = select_events_with_value(ref_df, value=POS_VALUE)
+    if len(ref_pos_indexes) < number_shots:
+        # Not enough positives to remove support shots; leave as-is
+        return ref_df
+
     ref_n_shot_index = ref_pos_indexes[number_shots - 1]
     # remove all events (pos and UNK) that happen before this 5th event
     events_to_drop = ref_df.index[

@@ -66,6 +66,7 @@ train_param:
   adaptive_seg_len: true
   use_validation_first_5: false  # If true, include first n_shot positives from val as support in training
   negative_train_contrast: true
+  use_csv_neg_annotations: false  # If true, use NEG annotations from CSV instead of gap-based extraction
   load_weight_from: null
 
 # Evaluation Parameters
