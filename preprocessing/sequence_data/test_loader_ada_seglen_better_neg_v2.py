@@ -382,23 +382,43 @@ class PrototypeAdaSeglenBetterNegTestSetV2(Dataset):
         start_time, end_time = time_2_frame(
             df_eval, self.fps, padding=0.0
         )  # When calculating negative samples we do not want to use padding in order to maximize the negative sample we can get
-        start_times_neg = [int(start_time[index]) for index in index_sup]
-        end_times_neg = [int(end_time[index]) for index in index_sup]
+
         negative_onset_offset = []
         negative_seg_length = []
-        start = 0
-        # The start and end of negative segments
-        for (
-            s,
-            e,
-        ) in zip(start_times_neg, end_times_neg):
-            end = s
-            if end > start:
-                negative_onset_offset.append((start, end))
-                negative_seg_length.append(end - start)
-            else:
-                print("Error: end and start", end, start)
-            start = e
+
+        use_csv_neg = getattr(self.eval_param, 'use_csv_neg_annotations', True)
+
+        if use_csv_neg:
+            # Use NEG annotations from CSV
+            index_neg = np.where(Q_list == "NEG")[0]
+            if len(index_neg) > 0:
+                for idx in index_neg:
+                    s, e = int(start_time[idx]), int(end_time[idx])
+                    if e > s:
+                        negative_onset_offset.append((s, e))
+                        negative_seg_length.append(e - s)
+            # Fallback to gap-based if no NEG annotations found
+            if len(negative_onset_offset) == 0:
+                print(f"Warning: No NEG annotations found in {file}, falling back to gap-based")
+                use_csv_neg = False
+
+        if not use_csv_neg:
+            # Gap-based extraction (original method)
+            start_times_neg = [int(start_time[index]) for index in index_sup]
+            end_times_neg = [int(end_time[index]) for index in index_sup]
+            start = 0
+            # The start and end of negative segments
+            for (
+                s,
+                e,
+            ) in zip(start_times_neg, end_times_neg):
+                end = s
+                if end > start:
+                    negative_onset_offset.append((start, end))
+                    negative_seg_length.append(end - start)
+                else:
+                    print("Error: end and start", end, start)
+                start = e
 
         #################################Adaptive hop_seg#########################################
         start_time, end_time = time_2_frame(df_eval, self.fps, padding=0.025)
