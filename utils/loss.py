@@ -15,7 +15,22 @@ def euclidean_dist(x, y):
     return torch.pow(x - y, 2).sum(2)
 
 
-def prototypical_loss(_input, target, n_support):
+def cosine_dist(x, y):
+    """Compute cosine distance (1 - cosine similarity) between two tensors."""
+    x_norm = F.normalize(x, p=2, dim=1)
+    y_norm = F.normalize(y, p=2, dim=1)
+    similarity = torch.mm(x_norm, y_norm.t())
+    return 1 - similarity
+
+
+def get_distance_fn(distance: str = "euclidean"):
+    """Return the distance function based on the distance type."""
+    if distance == "cosine":
+        return cosine_dist
+    return euclidean_dist
+
+
+def prototypical_loss(_input, target, n_support, distance: str = "euclidean"):
     def supp_idxs(c):
         return target.eq(c).nonzero()[:n_support].squeeze(1)
 
@@ -31,7 +46,8 @@ def prototypical_loss(_input, target, n_support):
 
     query_idxs = torch.stack(list(map(query_idxs, classes))).view(-1)
     query_samples = _input[query_idxs]
-    dists = euclidean_dist(query_samples, prototypes)
+    dist_fn = get_distance_fn(distance)
+    dists = dist_fn(query_samples, prototypes)
     log_p_y = F.log_softmax(-dists, dim=1).view(n_classes, n_query, -1)
     dist_loss = torch.tensor([0.0]).to(log_p_y.device)
 
@@ -44,7 +60,7 @@ def prototypical_loss(_input, target, n_support):
     return loss, acc_val, dist_loss
 
 
-def prototypical_loss_filter_negative(_input, target, n_support):
+def prototypical_loss_filter_negative(_input, target, n_support, distance: str = "euclidean"):
     def supp_idxs(c):
         return target.eq(c).nonzero()[:n_support].squeeze(1)
 
@@ -64,7 +80,8 @@ def prototypical_loss_filter_negative(_input, target, n_support):
 
     query_idxs = torch.stack(list(map(query_idxs, pos_classes))).view(-1)
     query_samples = _input[query_idxs]
-    dists = euclidean_dist(query_samples, prototypes)
+    dist_fn = get_distance_fn(distance)
+    dists = dist_fn(query_samples, prototypes)
     log_p_y = F.log_softmax(-dists, dim=1).view(n_classes // 2, n_query, -1)
 
     target_inds = torch.arange(0, n_classes // 2) * 2

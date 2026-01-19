@@ -69,6 +69,7 @@ class ProtoNetV3LightningModule(L.LightningModule):
         self.max_epochs = max_epochs
         self.n_shot = n_shot
         self.negative_train_contrast = negative_train_contrast
+        self.distance = distance if isinstance(distance, str) else distance.value
         self.n_mels = n_mels
         self.onset_offset = {}
         self.last_dcase_metrics = None  # Stores DCASE metrics from last evaluation
@@ -99,7 +100,7 @@ class ProtoNetV3LightningModule(L.LightningModule):
             loss_fn = prototypical_loss
 
         embeddings = self._forward_embed(x)
-        loss, acc, dist_loss = loss_fn(embeddings, y, self.n_shot)
+        loss, acc, dist_loss = loss_fn(embeddings, y, self.n_shot, self.distance)
         return loss, acc, dist_loss
 
     def training_step(self, batch, batch_idx: int) -> torch.Tensor:
