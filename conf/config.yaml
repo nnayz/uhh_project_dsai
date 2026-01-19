@@ -77,6 +77,7 @@ eval_param:
   iterations: 3
   query_batch_size: 8
   negative_estimate: freq_mask
+  use_csv_neg_annotations: true  # If true, use NEG annotations from CSV; if false, use gap-based extraction
 
 # Runtime Settings
 runtime:
