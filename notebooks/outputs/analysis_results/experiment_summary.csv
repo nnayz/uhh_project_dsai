@@ -1,0 +1,13 @@
+experiment,best_epoch,best_fmeasure,checkpoint,source
+v1-logmel,unknown,,Not found,checkpoint file
+v1-logmel-f,1,40.49,last.ckpt,best_info.json
+v1-logmel-final,unknown,,Not found,checkpoint file
+v1-logmel-neg-contrast,11,34.53,last.ckpt,best_info.json
+v1-logmel-neg-contrast-f,7,34.62,last.ckpt,best_info.json
+v1-pcen-f,20,40.22,last-v1.ckpt,best_info.json
+v1-pcen-final,unknown,,Not found,checkpoint file
+v1-pcen-neg-contrast-f,15,34.2,last.ckpt,best_info.json
+v1-pcen-neg-csv-f,15,47.642,last.ckpt,best_info.json
+v1-pcen-test,unknown,,Not found,checkpoint file
+v2-logmel-neg-contrast-f,18,2.05,last.ckpt,best_info.json
+v2-pcen-final,unknown,,Not found,checkpoint file
