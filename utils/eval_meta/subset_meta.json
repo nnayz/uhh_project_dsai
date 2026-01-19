@@ -1,0 +1,34 @@
+{
+  "VAL": {
+    "ME": {
+      "Meerkat alarm call": [
+        "ME2.wav"
+      ],
+      "Meerkat move call": [
+        "ME1.wav"
+      ]
+    },
+    "PB": {
+      "Blackbird call": [
+        "BUK1_20181011_001004.wav",
+        "BUK4_20171022_004304a.wav",
+        "BUK5_20161101_002104a.wav"
+      ],
+      "Song thrush call": [
+        "BUK1_20181013_023504.wav",
+        "BUK4_20161011_000804.wav",
+        "BUK5_20180921_015906a.wav"
+      ]
+    },
+    "PB24": {
+      "Song thrush call": [
+        "BUK4_20160925_231604.wav",
+        "BUK5_20180921_015906a.wav",
+        "BUK5_20181007_011905.wav"
+      ],
+      "Blackbird call": [
+        "BUK4_20161031_232104a.wav"
+      ]
+    }
+  }
+}

@@ -1,0 +1,8 @@
+experiment,f_measure,best_epoch,has_val_eval,data_source
+v1-pcen-neg-csv-f,0.47642,epoch_000,True,best_info.json
+v1-logmel-f,0.40490000000000004,epoch_006,True,best_info.json
+v1-pcen-f,0.4022,epoch_014,True,best_info.json
+v1-logmel-neg-contrast-f,0.34619999999999995,epoch_000,True,best_info.json
+v1-logmel-neg-contrast,0.3453,epoch_000,True,best_info.json
+v1-pcen-neg-contrast-f,0.342,epoch_000,True,best_info.json
+v2-logmel-neg-contrast-f,0.020499999999999997,epoch_014,True,best_info.json
