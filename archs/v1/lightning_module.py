@@ -264,8 +264,8 @@ class ProtoNetLightningModule(L.LightningModule):
     def _run_val_event_eval(self) -> None:
         from preprocessing.sequence_data import PrototypeAdaSeglenBetterNegTestSetV2
         from utils.evaluation import evaluate as eval_fn
-        from utils.post_proc import post_processing as post_proc
-        from utils.post_proc_new import post_processing as post_proc_new
+        from postprocessing.post_proc import post_processing as post_proc
+        from postprocessing.post_proc_new import post_processing as post_proc_new
 
         self.onset_offset = {}
 

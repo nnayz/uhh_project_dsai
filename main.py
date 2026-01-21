@@ -210,8 +210,8 @@ def evaluate(pred, dataset, output_dir):
         shutil.copy(pred, eval_raw)
 
     from utils.evaluation import evaluate as eval_fn
-    from utils.post_proc import post_processing as post_proc
-    from utils.post_proc_new import post_processing as post_proc_new
+    from postprocessing.post_proc import post_processing as post_proc
+    from postprocessing.post_proc_new import post_processing as post_proc_new
 
     dataset_name = dataset.upper()
 
