@@ -41,6 +41,7 @@ def cli():
 
     2. Train model:
        g5 train v1 --exp-name my_experiment
+       g5 train v4 --exp-name v4_experiment
     """
     pass
 
@@ -419,7 +420,7 @@ def viz_segments(class_name, split, max_segments, output_dir, no_precomputed, sh
 
 
 @cli.command("train", help="Train model with PyTorch Lightning (Phase 2)")
-@click.argument("arch", type=click.Choice(["v1", "v2", "v3"]), default="v1")
+@click.argument("arch", type=click.Choice(["v1", "v2", "v3", "v4"]), default="v1")
 @click.option(
     "--exp-name",
     "-e",
@@ -432,7 +433,7 @@ def train(arch, exp_name, overrides):
     """
     Train the model with PyTorch Lightning.
 
-    ARCH: Architecture to use ('v1', 'v2', or 'v3')
+    ARCH: Architecture to use ('v1', 'v2', 'v3', or 'v4')
 
     --exp-name: Experiment name for this run (required)
 
@@ -444,7 +445,7 @@ def train(arch, exp_name, overrides):
 
         g5 train v1 --exp-name my_experiment arch.training.max_epochs=100
 
-        g5 train v1 --exp-name my_experiment
+        g5 train v4 --exp-name v4_experiment
     """
     import subprocess
     import sys
@@ -467,7 +468,7 @@ def train(arch, exp_name, overrides):
 @click.option(
     "--arch",
     "-a",
-    type=click.Choice(["v1", "v2", "v3"]),
+    type=click.Choice(["v1", "v2", "v3", "v4"]),
     default="v1",
     help="Architecture type",
 )

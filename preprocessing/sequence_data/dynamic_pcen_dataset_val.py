@@ -75,6 +75,15 @@ class PrototypeDynamicArrayDataSetVal(Dataset):
         """
         if self.use_csv_neg:
             self.build_meta_with_csv_neg()
+            # If no classes have negatives, fall back to gap-based negatives
+            # (validation CSV files may not have NEG annotations)
+            classes_with_negatives = [c for c in self.meta.keys() if len(self.meta[c]["neg_info"]) > 0]
+            if len(classes_with_negatives) == 0:
+                print("Warning: No validation classes have CSV NEG annotations. "
+                      "Falling back to gap-based negatives for validation.")
+                self.use_csv_neg = False  # Disable CSV neg for validation
+                self.meta = {}  # Reset meta
+                self.build_meta()  # Use gap-based negatives
         else:
             self.build_meta()
         # self.build_mask()
@@ -148,6 +157,18 @@ class PrototypeDynamicArrayDataSetVal(Dataset):
         print("Mean %s; Std %s;" % (mean_, std_))
 
     def select_negative(self, class_name):
+        # Safety check: if no negative segments, skip this class and try another
+        if len(self.meta[class_name]["neg_info"]) == 0:
+            # Fallback: try to get a random class that has negatives
+            classes_with_negatives = [c for c in self.classes if len(self.meta[c]["neg_info"]) > 0]
+            if len(classes_with_negatives) == 0:
+                raise ValueError(
+                    f"No classes with negative segments available in validation set. "
+                    f"Class {class_name} has no negatives and no other classes have negatives either."
+                )
+            # Use a random class that has negatives instead
+            class_name = np.random.choice(classes_with_negatives)
+        
         # Choose the negative
         segment_idx = np.random.randint(len(self.meta[class_name]["neg_info"]))
         start, end = self.meta[class_name]["neg_info"][segment_idx]
@@ -156,10 +177,16 @@ class PrototypeDynamicArrayDataSetVal(Dataset):
             segment_idx = np.random.randint(len(self.meta[class_name]["neg_info"]))
             start, end = self.meta[class_name]["neg_info"][segment_idx]
 
+        # Use neg_file if available (CSV NEG mode), otherwise use file (gap-based)
+        if "neg_file" in self.meta[class_name] and self.meta[class_name]["neg_file"]:
+            audio_file = self.meta[class_name]["neg_file"][segment_idx]
+        else:
+            audio_file = self.meta[class_name]["file"][segment_idx]
+
         segment = self.select_segment(
             start,
             end,
-            self.pcen[self.meta[class_name]["neg_file"][segment_idx]],
+            self.pcen[audio_file],
             seg_len=int(self.seg_len * self.fps),
             class_name=class_name,
         )

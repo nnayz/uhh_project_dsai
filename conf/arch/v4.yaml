@@ -1,0 +1,34 @@
+# Architecture configuration for v4 (EfficientNet-B1 encoder)
+# Optimized for 8GB GPU (RTX 3070)
+# Features: EfficientNet-B1 encoder with ImageNet pretrained weights
+
+name: v4
+
+# Model Architecture
+model:
+  embedding_dim: ${features.embedding_dim}
+  model_name: efficientnet-b1  # Options: efficientnet-b0, efficientnet-b1, efficientnet-b2
+  pretrained: true  # Use ImageNet pretrained weights
+  dropout: 0.1
+  distance: euclidean
+
+# Episode Configuration
+episodes:
+  n_way: ${train_param.k_way}
+  k_shot: ${train_param.n_shot}
+  n_query: 5
+  episodes_per_epoch: ${train_param.num_episodes}
+  val_episodes: 200
+  test_episodes: 200
+
+# Training Configuration
+training:
+  learning_rate: ${train_param.lr_rate}
+  weight_decay: 1e-4
+  max_epochs: 200
+  load_weight_from: null
+  gradient_clip_val: null
+  scheduler: step
+  scheduler_gamma: ${train_param.scheduler_gamma}
+  scheduler_step_size: ${train_param.scheduler_step_size}
+

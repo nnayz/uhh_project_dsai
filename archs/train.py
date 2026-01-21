@@ -68,8 +68,12 @@ def get_lightning_module(arch_name: str) -> Type[L.LightningModule]:
         from archs.v3.lightning_module import ProtoNetV3LightningModule
 
         return ProtoNetV3LightningModule
+    elif arch_name == "v4":
+        from archs.v4.lightning_module import ProtoNetV4LightningModule
+
+        return ProtoNetV4LightningModule
     else:
-        raise ValueError(f"Unknown architecture: {arch_name}. Supported: v1, v2, v3")
+        raise ValueError(f"Unknown architecture: {arch_name}. Supported: v1, v2, v3, v4")
 
 
 def build_model(cfg: DictConfig) -> L.LightningModule:
@@ -143,6 +147,23 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
             n_shot=cfg.train_param.n_shot,
             negative_train_contrast=cfg.train_param.negative_train_contrast,
         )
+    elif arch_name == "v4":
+        model = module_class(
+            emb_dim=cfg.arch.model.embedding_dim,
+            distance=cfg.arch.model.distance,
+            n_mels=cfg.features.n_mels,
+            model_name=cfg.arch.model.model_name,
+            pretrained=cfg.arch.model.pretrained,
+            dropout=cfg.arch.model.dropout,
+            lr=cfg.arch.training.learning_rate,
+            weight_decay=cfg.arch.training.weight_decay,
+            scheduler_gamma=cfg.arch.training.scheduler_gamma,
+            scheduler_step_size=cfg.arch.training.scheduler_step_size,
+            scheduler_type=cfg.arch.training.scheduler,
+            num_classes=cfg.arch.episodes.n_way,
+            n_shot=cfg.train_param.n_shot,
+            negative_train_contrast=cfg.train_param.negative_train_contrast,
+        )
     else:
         raise ValueError(f"Unknown architecture: {arch_name}")
 
@@ -185,6 +206,16 @@ def build_model(cfg: DictConfig) -> L.LightningModule:
                 "model/mlp_dim": cfg.arch.model.mlp_dim,
                 "model/dropout": cfg.arch.model.dropout,
                 "model/pooling": cfg.arch.model.pooling,
+            }
+        )
+    elif arch_name == "v4":
+        mf_logger.log_params(
+            {
+                "model/embedding_dim": cfg.arch.model.embedding_dim,
+                "model/distance": cfg.arch.model.distance,
+                "model/model_name": cfg.arch.model.model_name,
+                "model/pretrained": cfg.arch.model.pretrained,
+                "model/dropout": cfg.arch.model.dropout,
             }
         )
 

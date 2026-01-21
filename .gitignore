@@ -24,16 +24,10 @@ build/
 .dcase_baseline/
 
 # Training outputs (keep checkpoints only)
-outputs/**
-!outputs/mlflow_experiments/
-!outputs/mlflow_experiments/**/
-!outputs/mlflow_experiments/**/checkpoints/
-!outputs/mlflow_experiments/**/checkpoints/**
-!outputs/mlflow_experiments/**/val_eval/**
-mlruns/
+outputs/
 
 
 # legacy baseline implementation
 archs/baseline
 
-uhh_project_dsai.wiki
+uhh_project_dsai.wikioutputs/

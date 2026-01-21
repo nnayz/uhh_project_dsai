@@ -104,6 +104,18 @@ class PrototypeDynamicArrayDataSet(Dataset):
         self.seg_len = float(np.random.uniform(0.2, 0.5))
 
     def select_negative(self, class_name):
+        # Safety check: if no negative segments, skip this class and try another
+        if len(self.meta[class_name]["neg_info"]) == 0:
+            # Fallback: try to get a random class that has negatives
+            classes_with_negatives = [c for c in self.classes if len(self.meta[c]["neg_info"]) > 0]
+            if len(classes_with_negatives) == 0:
+                raise ValueError(
+                    f"No classes with negative segments available. "
+                    f"Class {class_name} has no negatives and no other classes have negatives either."
+                )
+            # Use a random class that has negatives instead
+            class_name = np.random.choice(classes_with_negatives)
+        
         segment_idx = np.random.randint(len(self.meta[class_name]["neg_info"]))
         start, end = self.meta[class_name]["neg_info"][segment_idx]
         while end - start < 0.2:  # TODO the value here
