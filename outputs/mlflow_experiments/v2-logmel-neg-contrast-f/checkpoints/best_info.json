@@ -1,0 +1,12 @@
+{
+  "checkpoint_path": "/export/home/4huda/group5/outputs/mlflow_experiments/v2-logmel-neg-contrast-f/checkpoints/best.ckpt",
+  "monitor": "val/fmeasure",
+  "best_epoch": 18,
+  "final_epoch": 29,
+  "seed": 1234,
+  "dcase_metrics": {
+    "precision": 1.06,
+    "recall": 35.82,
+    "fmeasure": 2.05
+  }
+}
